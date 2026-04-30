@@ -1,0 +1,3068 @@
+<!DOCTYPE html>
+<html lang="ko" class="theme-light" style="--font-scale: 1; --doc-title-size: 48px; --doc-bullets-size: 22px;"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>정밀 타격 대시보드 및 카드앱의 세이버 메트릭스 제안 — UX Insight팀</title>
+<style>
+  @font-face { font-family: 'SFProDisplay'; src: url('../fonts/SF-Pro-Display-Medium.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+  @font-face { font-family: 'SFProDisplay'; src: url('../fonts/SF-Pro-Display-Medium.woff2') format('woff2'); font-weight: 500; font-display: swap; }
+  @font-face { font-family: 'SFProDisplay'; src: url('../fonts/SF-Pro-Display-Bold.woff2') format('woff2'); font-weight: 600; font-display: swap; }
+  @font-face { font-family: 'SFProDisplay'; src: url('../fonts/SF-Pro-Display-Bold.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+  @font-face { font-family: 'SFProDisplay'; src: url('../fonts/SF-Pro-Display-Bold.woff2') format('woff2'); font-weight: 800; font-display: swap; }
+  @font-face { font-family: 'YouandiNewKrTitle'; src: url('../fonts/YouandiNewKrTitle-Bold.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+</style>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --font-scale: 1; --doc-title-size: 48px; --doc-bullets-size: 22px; }
+
+  /* ===== Theme tokens ===== */
+  html.theme-dark {
+    --bg: #080808; --surface: #141414; --surface-2: #1a1a1a; --surface-hover: #1a1a1a;
+    --border: rgba(255,255,255,0.10); --border-strong: rgba(255,255,255,0.22);
+    --text: rgba(255,255,255,0.92); --text-secondary: rgba(255,255,255,0.45);
+    --accent: #00D56D; --accent-secondary: #FF0238;
+    --positive: #00D56D; --negative: #FF0238; --warning: #f59e0b;
+    --discuss: #FF0238;
+    --soft-fill: rgba(255,255,255,0.08);
+    --invert-bg: #fff; --invert-text: #000;
+  }
+  html.theme-light {
+    --bg: #F5F5F3; --surface: #FFFFFF; --surface-2: #FAFAF9; --surface-hover: #EBEBEA;
+    --border: rgba(0,0,0,0.12); --border-strong: rgba(0,0,0,0.28);
+    --text: #0f172a; --text-secondary: #6b7280;
+    --accent: #00b85e; --accent-secondary: #FF0238;
+    --positive: #00b85e; --negative: #FF0238; --warning: #d97706;
+    --discuss: #FF0238;
+    --soft-fill: rgba(0,0,0,0.07);
+    --invert-bg: #000; --invert-text: #fff;
+  }
+
+  html.theme-transitioning body,
+  html.theme-transitioning .slide,
+  html.theme-transitioning .slide *,
+  html.theme-transitioning .overview-thumb,
+  html.theme-transitioning .overview-clone *,
+  html.theme-transitioning .slides-wrapper {
+    transition: background-color 400ms ease-in-out, color 400ms ease-in-out, border-color 400ms ease-in-out, fill 400ms ease-in-out, stroke 400ms ease-in-out !important;
+  }
+
+  html, body { height: 100%; overflow: hidden; background: var(--bg); }
+  body {
+    font-family: 'SFProDisplay','SF Pro Display',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;
+    color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased;
+  }
+  h1,h2,h3,h4,h5,h6 { color: var(--text); letter-spacing: -0.02em; line-height: 1.18; }
+  h1, h2 { font-family: 'YouandiNewKrTitle','SFProDisplay',sans-serif; font-weight: 700; }
+  h3 { font-weight: 600; font-family: 'YouandiNewKrTitle','SFProDisplay',sans-serif; }
+
+  /* ===== Animations ===== */
+  @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px);} to { opacity: 1; transform: none;} }
+  .animate { animation: fadeInUp 0.55s ease-out both; }
+  .animate.delay-1{animation-delay:.1s} .animate.delay-2{animation-delay:.2s}
+  .animate.delay-3{animation-delay:.3s} .animate.delay-4{animation-delay:.4s}
+  .animate.delay-5{animation-delay:.5s} .animate.delay-6{animation-delay:.6s}
+  .animate.delay-7{animation-delay:.7s} .animate.delay-8{animation-delay:.8s}
+
+  /* ===== Slides wrapper (canvas width 가변, height 1080 고정) ===== */
+  :root { --canvas-w: 1920px; }
+  .slides-wrapper {
+    width: var(--canvas-w); height: 1080px;
+    position: fixed; top: 0; left: 0; transform-origin: top left;
+    transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1), height 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden; background: transparent;
+  }
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start;
+    padding: calc(110px * var(--font-scale)) 140px calc(120px * var(--font-scale));
+    background: var(--bg);
+    opacity: 0; transform: translateX(60px);
+    transition: opacity 0.45s cubic-bezier(0.4,0,0.2,1), transform 0.45s cubic-bezier(0.4,0,0.2,1);
+    pointer-events: none;
+  }
+  .slide.active { opacity: 1; transform: none; pointer-events: auto; }
+  .slide.exit-left { opacity: 0; transform: translateX(-60px); }
+
+  /* ===== Common slide elements ===== */
+  .slide-tag {
+    font-size: calc(28px * var(--font-scale));
+    font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text-secondary); margin-bottom: 22px;
+    font-family: 'SFProDisplay', sans-serif;
+  }
+  .slide-title {
+    font-size: calc(96px * var(--font-scale));
+    font-weight: 700; line-height: 1.15;
+    font-family: 'YouandiNewKrTitle','SFProDisplay', sans-serif;
+    margin-bottom: 56px; letter-spacing: -0.02em;
+  }
+  .slide-title.sm { font-size: calc(64px * var(--font-scale)); font-weight: 800; line-height: 1.45; }
+  .slide-sub {
+    font-size: calc(28px * var(--font-scale)); color: var(--text-secondary);
+    line-height: 1.6; max-width: 1500px; font-weight: 500;
+  }
+  .crumb { color: var(--text-secondary); font-weight: 400; }
+  .badge-discuss {
+    display: inline-block; vertical-align: middle;
+    background: var(--discuss); color: #fff;
+    font-family: 'SFProDisplay'; font-weight: 700;
+    font-size: calc(20px * var(--font-scale));
+    padding: 6px 14px; border-radius: 8px !important;
+    letter-spacing: 0.05em; margin-left: 18px;
+  }
+
+  /* ===== Cover (ref 1.png) ===== */
+  .slide-cover {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+    padding: 120px 200px 180px;
+  }
+  .cover-title {
+    margin: auto 0 0;
+    font-size: calc(116px * var(--font-scale));
+    font-weight: 800; line-height: 1.22;
+    font-family: 'YouandiNewKrTitle','SFProDisplay', sans-serif;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+  .cover-title, .cover-title * { color: var(--text) !important; }
+  .cover-author {
+    margin-top: auto;
+    display: flex; flex-direction: column; gap: 12px;
+    font-size: calc(28px * var(--font-scale));
+    font-weight: 600; color: var(--text);
+    letter-spacing: 0.01em;
+  }
+
+  /* ===== Closing (EOD) ===== */
+  .slide-eod { align-items: center; justify-content: center; }
+  .eod-text {
+    font-size: calc(180px * var(--font-scale));
+    font-family: 'YouandiNewKrTitle','SFProDisplay', sans-serif;
+    color: var(--text); letter-spacing: 0.05em;
+  }
+
+  /* ===== Card primitive ===== */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 18px; padding: 44px 38px;
+  }
+  .card.padless { padding: 0; overflow: hidden; }
+
+  /* ===== Doc layout — title + bullets + content (ref 0/3/4/9 등) ===== */
+  .slide-doc { padding: calc(80px * var(--font-scale)) 100px 0; }
+  .doc-title {
+    font-size: calc(var(--doc-title-size) * var(--font-scale));
+    font-weight: 800; letter-spacing: -0.02em; line-height: 1.2;
+    color: var(--text);
+  }
+  .doc-bullets {
+    list-style: none;
+    display: flex; flex-direction: column;
+    font-weight: 600; color: var(--text);
+    line-height: 1.45; margin-top: 16px; margin-bottom: 20px;
+  }
+  .doc-bullets li {
+    padding-left: 20px; position: relative;
+    font-size: calc(var(--doc-bullets-size) * var(--font-scale));
+  }
+  /* gap을 margin으로 변환 — 트랜지션 가능하게 (flex gap은 negative margin으로 absorb 안 됨) */
+  .doc-bullets > li + li {
+    margin-top: 6px;
+  }
+  .doc-bullets li::before {
+    content: '•'; position: absolute; left: 0; top: 0; font-weight: 800;
+    font-size: calc(22px * var(--font-scale));
+  }
+  .doc-image-wrap {
+    flex: 1; min-height: 0;
+    display: flex; align-items: flex-end; justify-content: center;
+    margin: 30px -100px 0;
+  }
+  .doc-image-wrap img {
+    max-width: 100%; max-height: 100%; object-fit: contain; display: block;
+  }
+  .doc-image-cap {
+    text-align: center; margin-top: 24px;
+    font-size: calc(22px * var(--font-scale));
+    color: var(--text-secondary); font-weight: 500;
+  }
+
+  /* ===== Page 1: 세그별 명칭 정의 (ref 0.png) ===== */
+  .slide-segments .doc-title { margin-bottom: 36px; }
+  .seg-block + .seg-block { margin-top: 96px; }
+  .seg-track-label {
+    font-size: calc(28px * var(--font-scale));
+    font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--text); margin-bottom: 14px;
+    font-family: 'SFProDisplay', sans-serif;
+  }
+  .seg-block.muted .seg-track-label { color: var(--text-secondary); }
+  .seg-table {
+    width: 100%; border-collapse: collapse;
+    table-layout: fixed;
+    border-top: 2px solid var(--text);
+  }
+  .seg-block.muted .seg-table { border-top-color: var(--border-strong); }
+  .seg-table thead th {
+    padding: 18px 0; text-align: center;
+    background: rgba(0,0,0,0.025);
+    font-size: calc(24px * var(--font-scale));
+    font-weight: 600; color: var(--text-secondary);
+    border-bottom: 1px solid var(--border);
+  }
+  .seg-table tbody td {
+    padding: 24px 0; text-align: center;
+    font-size: calc(42px * var(--font-scale));
+    font-weight: 800; color: var(--text);
+    font-family: 'SFProDisplay', sans-serif;
+    letter-spacing: -0.01em;
+    border-bottom: 1px solid var(--border);
+  }
+  .seg-block.muted .seg-table thead th {
+    background: transparent;
+    font-size: calc(34px * var(--font-scale));
+    font-weight: 500;
+    color: var(--text-secondary);
+    padding: 26px 0;
+  }
+
+  /* ===== Page 2: 인트로 3카드 (ref 2.png) ===== */
+  .slide-intro {
+    padding: 0;
+    display: flex; flex-direction: column;
+  }
+  .slide-intro-body {
+    padding: calc(80px * var(--font-scale)) 100px 60px;
+    display: flex; flex-direction: column;
+    flex: 1; min-height: 0;
+  }
+  .slide-intro .slide-tag { text-align: left; margin-bottom: 0; }
+  .slide-intro .slide-title {
+    text-align: center; margin: auto 0 100px;
+  }
+  .intro-cards {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+    margin-bottom: auto;
+  }
+  .intro-card {
+    background: var(--soft-fill);
+    border-radius: 32px;
+    padding: 70px 30px;
+    display: flex; align-items: center; justify-content: center;
+    text-align: center;
+    min-height: 240px;
+  }
+  .intro-card h3 {
+    font-size: calc(32px * var(--font-scale));
+    font-weight: 700; line-height: 1.45;
+    color: var(--text); letter-spacing: -0.01em;
+  }
+  .intro-footer {
+    background: var(--invert-bg); color: var(--invert-text);
+    padding: 50px 80px;
+    text-align: center;
+    font-size: calc(28px * var(--font-scale));
+    font-weight: 700; line-height: 1.55;
+    letter-spacing: -0.01em;
+  }
+  .intro-footer .sub { font-weight: 600; margin-top: 0.15em; }
+
+  /* ===== Slide 5: 야구 vs 카드앱 (centered headline + soft-fill compare box) ===== */
+  .head-center {
+    text-align: center;
+    font-family: 'YouandiNewKrTitle','SFProDisplay', sans-serif;
+    font-size: calc(64px * var(--font-scale));
+    font-weight: 800; color: var(--text);
+    line-height: 1.45; letter-spacing: -0.02em;
+    margin: 90px 0 70px;
+  }
+  .attn-center {
+    flex: 1;
+    display: flex; flex-direction: column; justify-content: center;
+    padding-bottom: 70px;
+  }
+  .attn-center .head-center { margin: 0 0 60px; }
+  .attn-center .formula-box { margin: 0; }
+  .attn-center .formula-notes { margin-top: 36px; }
+  .attn-center .formula { white-space: nowrap; }
+  .attn-center > .lc-stages { margin: 0 0 28px; }
+  .attn-center > .bh1,
+  .attn-center > .bh2,
+  .attn-center > .pat4,
+  .attn-center > .lc-cards,
+  .attn-center > .ba-cards { flex: none; min-height: 0; margin-top: 0; }
+  .attn-center .ba-card .body,
+  .attn-center .ba-card .items,
+  .attn-center .lc-card .body,
+  .attn-center .bhx-card > .body { flex: none; }
+  .compare-rounded {
+    background: rgba(158, 138, 73, 0.12);
+    border-radius: 28px;
+    padding: 26px 70px;
+    display: flex; flex-direction: column;
+  }
+  .cmp-row {
+    display: grid;
+    grid-template-columns: 320px 1fr 110px 1fr;
+    align-items: center;
+    padding: 50px 0;
+    gap: 40px;
+  }
+  .cmp-row + .cmp-row { border-top: 2px dashed var(--border); }
+  .cmp-emoji {
+    display: flex; align-items: center; gap: 18px;
+    font-family: 'YouandiNewKrTitle','SFProDisplay', sans-serif;
+    font-size: calc(40px * var(--font-scale));
+    font-weight: 800; color: var(--text);
+  }
+  .cmp-emoji .ico { font-size: 1.05em; line-height: 1; }
+  .cmp-from {
+    font-family: 'SFProDisplay', sans-serif; font-weight: 700;
+    font-size: calc(36px * var(--font-scale));
+    color: var(--text);
+  }
+  .cmp-arrow {
+    display: flex; justify-content: center;
+    font-size: calc(40px * var(--font-scale));
+    color: var(--text); font-weight: 500;
+  }
+  .cmp-to {
+    font-family: 'SFProDisplay', sans-serif; font-weight: 800;
+    font-size: calc(38px * var(--font-scale));
+    color: var(--text);
+  }
+
+  /* ===== Slide 6: 라이프 사이클 stages + 3 cards ===== */
+  .lc-stages {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    align-items: center; margin: 40px 0 28px; padding: 0 12px;
+  }
+  .lc-stage {
+    position: relative;
+    font-family: 'YouandiNewKrTitle','SFProDisplay', sans-serif;
+    font-size: calc(36px * var(--font-scale));
+    font-weight: 700; color: var(--text);
+    text-align: center;
+  }
+  .lc-stage:not(:first-child)::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 50%;
+    width: 240px; height: 18px;
+    transform: translate(-50%, -50%);
+    background-color: currentColor;
+    opacity: 0.75;
+    -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 18' fill='none'><line x1='4' y1='9' x2='230' y2='9' stroke='%23000' stroke-width='1.6' stroke-linecap='round'/><path d='M222 2 L232 9 L222 16' stroke='%23000' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>") center/contain no-repeat;
+            mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 18' fill='none'><line x1='4' y1='9' x2='230' y2='9' stroke='%23000' stroke-width='1.6' stroke-linecap='round'/><path d='M222 2 L232 9 L222 16' stroke='%23000' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>") center/contain no-repeat;
+  }
+  .lc-cards {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 36px; flex: 1; min-height: 0;
+  }
+  .lc-card {
+    border: 1px solid var(--border); border-radius: 22px;
+    overflow: hidden; display: flex; flex-direction: column;
+    background: var(--surface);
+  }
+  .lc-card .head {
+    background: var(--invert-bg); color: var(--invert-text);
+    padding: 26px 36px;
+    font-family: 'YouandiNewKrTitle','SFProDisplay', sans-serif;
+    font-weight: 800;
+    font-size: calc(34px * var(--font-scale));
+    display: flex; align-items: baseline; justify-content: center; gap: 16px;
+  }
+  .lc-card .head .en {
+    font-family: 'SFProDisplay', sans-serif; font-weight: 500;
+    font-size: calc(22px * var(--font-scale)); opacity: 0.85;
+  }
+  .lc-card .body {
+    padding: 44px 30px; flex: 1;
+    display: flex; flex-direction: column; gap: 26px;
+    align-items: center; text-align: center;
+    font-family: 'YouandiNewKrTitle','SFProDisplay', sans-serif;
+    font-size: calc(26px * var(--font-scale));
+    font-weight: 700; color: var(--text); line-height: 1.55;
+  }
+
+  /* ===== Slides 7, 10, 14, 17: 정의 + 공식 (gold-tint rounded formula) ===== */
+  .formula-box {
+    background: rgba(158, 138, 73, 0.12);
+    border-radius: 28px;
+    padding: 110px 80px;
+    display: flex; align-items: center; justify-content: center;
+    margin: 60px 8% 36px;
+  }
+  .formula {
+    font-family: 'YouandiNewKrTitle','SFProDisplay', sans-serif;
+    font-size: calc(60px * var(--font-scale));
+    font-weight: 800; color: var(--text);
+    letter-spacing: -0.005em; text-align: center;
+    line-height: 1.2;
+  }
+  .formula .star { color: #d97a6c; padding: 0 6px; }
+  .formula-notes {
+    text-align: center;
+    font-size: calc(24px * var(--font-scale));
+    color: var(--text-secondary);
+    font-weight: 500; line-height: 1.7;
+  }
+  .formula-notes p + p { margin-top: 4px; }
+
+  /* ===== Black-headed cards (slides 8, 11, 12, 18) ===== */
+  .bh2 { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; flex: 1; min-height: 0; margin-top: 30px; }
+  .bh1 { display: flex; flex-direction: column; gap: 28px; flex: 1; min-height: 0; margin-top: 30px; }
+  .bhx-card {
+    border: 1px solid var(--border); border-radius: 22px;
+    overflow: hidden; background: var(--surface);
+    display: flex; flex-direction: column;
+  }
+  .bhx-card > .head {
+    background: var(--invert-bg); color: var(--invert-text);
+    padding: 24px 36px;
+    font-family: 'YouandiNewKrTitle','SFProDisplay', sans-serif;
+    font-size: calc(30px * var(--font-scale)); font-weight: 800;
+  }
+  .bhx-card > .body {
+    padding: 40px 44px; flex: 1;
+    display: flex; flex-direction: column; gap: 18px;
+  }
+  .bhx-card > .body h4 {
+    font-family: 'YouandiNewKrTitle','SFProDisplay', sans-serif;
+    font-size: calc(28px * var(--font-scale));
+    color: var(--text); font-weight: 800;
+  }
+  .bhx-card .body.two-col > div { display: flex; flex-direction: column; gap: 18px; }
+  .bhx-card > .body ul { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .bhx-card > .body li {
+    font-size: calc(22px * var(--font-scale));
+    color: var(--text); line-height: 1.65;
+    padding-left: 22px; position: relative; font-weight: 500;
+  }
+  .bhx-card > .body li::before {
+    content: '•'; position: absolute; left: 4px; top: 0; font-weight: 800;
+  }
+  .bhx-card > .body p {
+    font-size: calc(22px * var(--font-scale));
+    color: var(--text); line-height: 1.7; font-weight: 500;
+  }
+  .bhx-card .body.two-col {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 60px;
+  }
+
+  /* Slide 12: RDI cards centered formula */
+  .rdi-card .body { align-items: center; text-align: center; gap: 20px; padding: 56px 36px 36px !important; }
+  .attn-center .rdi-card > .body { flex: 1; }
+  .rdi-card .body .lede {
+    font-family: 'YouandiNewKrTitle','SFProDisplay', sans-serif;
+    font-size: calc(26px * var(--font-scale));
+    font-weight: 800; color: var(--text); line-height: 1.4;
+  }
+  .rdi-card .body .cond {
+    font-size: calc(22px * var(--font-scale));
+    color: var(--text); line-height: 1.85; font-weight: 500;
+    margin-bottom: 24px;
+  }
+  .rdi-card .body .formula-mini {
+    margin-top: auto; width: 100%;
+    background: var(--soft-fill);
+    border-radius: 16px; padding: 38px 30px;
+    font-family: 'SFProDisplay', sans-serif; font-weight: 800;
+    font-size: calc(26px * var(--font-scale)); color: var(--text);
+    letter-spacing: -0.005em;
+  }
+  .rdi-card .body .formula-mini .star { color: #d97a6c; padding: 0 4px; }
+
+  /* ===== Slides 15, 19: 4 패턴 카드 (black header, top desc, soft-fill bottom) ===== */
+  .pat4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 26px; flex: 1; min-height: 0; margin-top: 30px; }
+  .pat4-card {
+    border: 1px solid var(--border); border-radius: 22px;
+    overflow: hidden; background: var(--surface);
+    display: flex; flex-direction: column;
+  }
+  .pat4-card .code {
+    background: var(--invert-bg); color: var(--invert-text);
+    padding: 26px 0; text-align: center;
+    font-family: 'SFProDisplay', sans-serif; font-weight: 800;
+    font-size: calc(48px * var(--font-scale));
+    letter-spacing: 0.06em;
+  }
+  .pat4-card .top {
+    padding: 38px 24px 38px; text-align: center;
+    font-family: 'YouandiNewKrTitle','SFProDisplay', sans-serif;
+    font-size: calc(24px * var(--font-scale));
+    font-weight: 700; color: var(--text-secondary);
+    line-height: 1.55;
+  }
+  .pat4-card .bot {
+    margin: 0 22px 22px; padding: 32px 18px;
+    background: var(--soft-fill);
+    border-radius: 16px;
+    text-align: center;
+    font-family: 'YouandiNewKrTitle','SFProDisplay', sans-serif;
+    font-size: calc(24px * var(--font-scale));
+    font-weight: 800; color: var(--text);
+    line-height: 1.5; flex: 1;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .pat4-foot {
+    margin-top: 20px; text-align: right;
+    font-size: calc(20px * var(--font-scale));
+    color: var(--text-secondary);
+    line-height: 1.7; font-weight: 500;
+  }
+
+  /* ===== Dashboard image slides (9, 13, 16, 20, 22, 23, 24) ===== */
+  .dash-wrap {
+    flex: 1; min-height: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    margin: 30px 0 0;
+  }
+  .dash-wrap img {
+    max-width: 100%; max-height: 100%;
+    object-fit: contain; display: block;
+  }
+  .dash-wrap.dual {
+    display: grid; grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr;
+    gap: 36px; align-items: stretch;
+    padding: 0;
+    margin: 30px 0 0;
+  }
+  .dash-wrap.dual img { width: 100%; }
+  .dash-wrap.dual .dash-cell { display: flex; flex-direction: column; align-items: center; min-height: 0; }
+  .dash-wrap.dual .dash-cell img {
+    display: block;
+    flex: 1; min-height: 0;
+    object-fit: contain;
+  }
+  .dash-wrap.dual .dash-cell .dash-cap { margin: 18px 0 0; flex: 0 0 auto; }
+
+  /* ===== B1 (탑+미드) 레이아웃: 이미지+캡션을 하나의 미드 그룹으로 ===== */
+  .slide-doc:has(.dash-stack),
+  .slide-doc:has(> .dash-wrap) { container-type: size; }
+
+  /* 패턴 A: dash-stack (페이지 22) + dash-cap sibling */
+  .slide-doc > .dash-stack { margin-top: auto !important; }
+  .slide-doc > .dash-stack + .dash-cap { margin-bottom: auto; }
+
+  /* 패턴 B: dash-wrap 단일 + dash-cap sibling (페이지 9, 13 = display 10, 14) */
+  .slide-doc > .dash-wrap:not(.dual) {
+    flex: 0 1 auto !important;
+    height: auto !important;
+    margin-top: auto !important;
+  }
+  .slide-doc > .dash-wrap:not(.dual) > img {
+    width: 100%;
+    height: auto;
+    max-height: calc(100cqh - 440px);
+    object-fit: contain;
+  }
+  .slide-doc > .dash-wrap:not(.dual) + .dash-cap {
+    margin-bottom: auto !important;
+  }
+
+  /* 패턴 C: dash-wrap.dual (페이지 16 = display 17) — cell 안에 image+cap 그룹 */
+  .dash-wrap.dual .dash-cell {
+    justify-content: center !important;
+    overflow: hidden;
+  }
+  .dash-wrap.dual .dash-cell img {
+    flex: 0 1 auto !important;
+    width: 100%;
+    height: auto;
+    max-height: calc(100cqh - 240px) !important;
+    object-fit: contain;
+  }
+  /* 패턴 D: dash-wrap.dual (페이지 20 = display 21) — cell 없이 img 직접 자식 */
+  .slide-doc > .dash-wrap.dual:not(:has(.dash-cell)) {
+    flex: 0 1 auto !important;
+    height: auto !important;
+    margin-top: auto !important;
+    margin-bottom: auto !important;
+    align-items: center !important;
+  }
+  .slide-doc > .dash-wrap.dual:not(:has(.dash-cell)) > img {
+    width: 100%;
+    height: auto;
+    max-height: calc(100cqh - 180px);
+    object-fit: contain;
+    align-self: center;
+  }
+  .dash-stack {
+    position: relative;
+    flex: 0 1 auto;
+    width: min(100%, calc((100cqh - 380px) * 2.05));
+    aspect-ratio: 2.05 / 1;
+    margin: 0 auto;
+    align-self: center;
+  }
+  .dash-stack img {
+    position: absolute;
+    width: 64%;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.08);
+    background: transparent;
+  }
+  .dash-stack .img-back  { top: 0;    left: 0;  z-index: 1; }
+  .dash-stack .img-front { bottom: 0; right: 0; z-index: 2; }
+
+  /* ===== Slides 23, 24: 좌측 이미지 + 우측 텍스트 노트 ===== */
+  .dash-side {
+    flex: 1; min-height: 0;
+    display: grid; grid-template-columns: 1.55fr 1fr;
+    gap: 50px; align-items: center;
+    margin: 30px 0 0;
+  }
+  .dash-side-img {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    height: 100%; gap: 18px; min-height: 0;
+  }
+  .dash-side-img img {
+    max-width: 100%; max-height: 100%;
+    object-fit: contain; display: block;
+  }
+  .dash-side-img .dash-cap {
+    margin: 0; text-align: center;
+  }
+  .dash-side-notes {
+    list-style: none;
+    display: flex; flex-direction: column; gap: 0;
+    font-family: 'YouandiNewKrTitle','SFProDisplay', sans-serif;
+    font-size: calc(20px * var(--font-scale));
+    font-weight: 700; color: var(--text);
+    line-height: 1.55;
+  }
+  .dash-side-notes li {
+    padding: 26px 0;
+    border-top: 1px dashed var(--border-strong);
+    white-space: nowrap;
+  }
+  .dash-side-notes li:last-child {
+    border-bottom: 1px dashed var(--border-strong);
+  }
+  .dash-side-notes .tag-update {
+    color: var(--accent); font-weight: 700;
+  }
+  .dash-cap {
+    text-align: center;
+    font-size: calc(22px * var(--font-scale));
+    color: var(--text-secondary);
+    font-weight: 500; margin: 18px 0 30px;
+  }
+
+  /* ===== Slide 21: BA 인트로 3 cards ===== */
+  .ba-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 36px; flex: 1; min-height: 0; margin-top: 30px; }
+  .ba-card {
+    border: 1px solid var(--border); border-radius: 22px;
+    overflow: hidden; background: var(--surface);
+    display: flex; flex-direction: column;
+  }
+  .ba-card .head {
+    background: var(--invert-bg); color: var(--invert-text);
+    padding: 26px; text-align: center;
+    font-family: 'YouandiNewKrTitle','SFProDisplay', sans-serif;
+    font-size: calc(32px * var(--font-scale)); font-weight: 800;
+  }
+  .ba-card .body {
+    padding: 40px 36px; flex: 1;
+    display: flex; flex-direction: column; gap: 40px;
+  }
+  .ba-card .lede {
+    font-family: 'YouandiNewKrTitle','SFProDisplay', sans-serif;
+    font-size: calc(26px * var(--font-scale));
+    font-weight: 700; line-height: 1.5;
+    text-align: center; color: var(--text);
+  }
+  .ba-card .items {
+    background: var(--soft-fill);
+    border-radius: 14px; padding: 24px 28px;
+    flex: 1;
+  }
+  .ba-card .items .label {
+    font-family: 'SFProDisplay', sans-serif; font-weight: 700;
+    font-size: calc(20px * var(--font-scale));
+    color: var(--text); margin-bottom: 10px;
+  }
+  .ba-card .items ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .ba-card .items li {
+    font-size: calc(20px * var(--font-scale)); color: var(--text);
+    line-height: 1.65; padding-left: 18px; position: relative; font-weight: 500;
+  }
+  .ba-card .items li::before {
+    content: '•'; position: absolute; left: 2px; top: 0; font-weight: 800;
+  }
+
+  /* ===== Bullet helper for "red" emphasis (FAI/RDI/LPI 빨강 불릿) ===== */
+  .doc-bullets li.hl { color: var(--negative); }
+  .doc-bullets li.hl::before { color: var(--negative); }
+
+  /* ===== Page 25: plan table ===== */
+  .plan-table { width: 100%; border-collapse: collapse; margin: 0; }
+  .plan-table th {
+    font-family: 'YouandiNewKrTitle', sans-serif; font-weight: 700;
+    font-size: calc(32px * var(--font-scale));
+    text-align: left; padding: 28px 26px 22px;
+    color: var(--text);
+    white-space: nowrap;
+    border-bottom: none;
+  }
+  .plan-table th small {
+    font-family: 'YouandiNewKrTitle','SFProDisplay', sans-serif; font-weight: 700;
+    font-size: 1em; color: var(--text); margin-left: 4px;
+  }
+  .plan-table td {
+    font-family: 'YouandiNewKrTitle','SFProDisplay', sans-serif; font-weight: 700;
+    font-size: calc(28px * var(--font-scale));
+    padding: 28px 26px; vertical-align: top; line-height: 1.55;
+    border-top: 1px solid var(--border); color: var(--text);
+  }
+  .plan-table td ul {
+    list-style: none; margin: 10px 0 0; padding: 0;
+    font-family: 'YouandiNewKrTitle','SFProDisplay', sans-serif; font-weight: 700;
+    font-size: calc(28px * var(--font-scale));
+    color: var(--text); line-height: 1.7;
+  }
+  .plan-table td ul li {
+    padding-left: 22px; position: relative;
+  }
+  .plan-table td ul li::before {
+    content: ''; position: absolute; left: 4px; top: 0.7em;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--text);
+  }
+  .plan-table td .sub {
+    display: block;
+    font-family: 'YouandiNewKrTitle','SFProDisplay', sans-serif; font-weight: 700;
+    font-size: calc(28px * var(--font-scale));
+    color: var(--text); line-height: 1.55;
+  }
+  .plan-table td.label {
+    font-family: 'YouandiNewKrTitle', sans-serif; font-weight: 700;
+    font-size: calc(30px * var(--font-scale)); color: var(--text);
+    width: 220px; padding-left: 40px;
+  }
+  .plan-table tr.row-schedule td {
+    background: var(--soft-fill);
+    border-top: 2px solid var(--text);
+  }
+  .plan-table tr.row-hl td {
+    background: #FAF1D6;
+  }
+  html.theme-dark .plan-table tr.row-hl td {
+    background: rgba(245, 220, 120, 0.18);
+  }
+  .attn-center > .plan-table { margin: 0; }
+
+  /* Page 1 (세그별 명칭 정의): 타이틀 상단 고정, 컨텐츠는 남은 공간 세로 중앙정렬 */
+  .slide-doc.slide-segments { padding-bottom: calc(80px * var(--font-scale)); }
+  .slide-doc.slide-segments > .seg-block:first-of-type { margin-top: auto; }
+  .slide-doc.slide-segments > .seg-block:last-of-type { margin-bottom: auto; }
+
+  /* ===== Progress bar ===== */
+  .progress-bar {
+    position: fixed; top: 0; left: 0; height: 3px; z-index: 9998;
+    background: var(--accent);
+    transition: width 0.4s ease; width: 0%;
+  }
+
+  /* ===== Slide nav (bottom) ===== */
+  .slide-nav {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 5px; z-index: 9998;
+    transition: bottom 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .slide-nav button {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: transparent; border: none; color: var(--text);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    opacity: 0.4; transition: opacity 0.2s;
+  }
+  .slide-nav button:hover { opacity: 1; }
+  .slide-counter {
+    font-size: 14px; color: var(--text-secondary); font-weight: 400;
+    min-width: 48px; text-align: center;
+    font-family: 'SFProDisplay', sans-serif;
+    display: inline-flex; align-items: center; gap: 2px;
+  }
+  .slide-divider { opacity: 0.4; }
+  input.slide-current,
+  .slide-total {
+    width: 20px; text-align: center;
+    padding: 4px 6px; border-radius: 6px;
+    box-sizing: content-box;
+    border: 1.5px solid transparent;
+    color: var(--text-secondary);
+    background: transparent;
+    font-size: 14px; font-weight: 400;
+    font-family: 'SFProDisplay', sans-serif;
+    display: inline-block;
+  }
+  input.slide-current {
+    margin-left: -6px;
+    cursor: text;
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+    outline: none;
+    pointer-events: auto !important;
+    position: relative; z-index: 2;
+  }
+  .slide-total {
+    margin-right: -6px;
+  }
+  input.slide-current:hover {
+    border-color: var(--border-strong);
+    color: var(--text);
+    background: var(--soft-fill);
+  }
+  input.slide-current:focus {
+    border-color: var(--border-strong);
+    background: var(--soft-fill);
+    color: var(--text);
+  }
+
+  /* ===== Inline editing ===== */
+  .editable {
+    cursor: text;
+    border-radius: 3px;
+    transition: box-shadow 0.12s, background 0.12s;
+  }
+  body:not(.overview-active) .editable:not([contenteditable="plaintext-only"]):hover:not(:has(.editable:hover)):not(:has(.editable[contenteditable="plaintext-only"])) {
+    box-shadow: inset 0 0 0 2px rgba(0, 213, 109, 0.64);
+  }
+  body.overview-active .editable { cursor: default; pointer-events: none !important; }
+  body.overview-active .slide .title-add-list,
+  body.overview-active .slide .bullet-controls,
+  body.overview-active .slide .btn-bullet { pointer-events: none !important; }
+  .editable[contenteditable="plaintext-only"] {
+    box-shadow: inset 0 0 0 2px var(--accent), inset 0 0 0 1000px rgba(0, 213, 109, 0.16);
+    outline: none;
+  }
+  /* Opt-in: text-tight wrap (used by .lede titles in BA/RDI cards) */
+  .lede.editable[contenteditable="plaintext-only"] {
+    width: -webkit-fit-content !important;
+    width: fit-content !important;
+    max-width: 100% !important;
+    white-space: normal !important;
+    white-space-collapse: collapse !important;
+    text-wrap: wrap !important;
+  }
+  .overview-clone .editable {
+    box-shadow: none !important;
+    background: transparent !important;
+    pointer-events: none !important;
+    cursor: default !important;
+  }
+
+  /* ===== Bullet structural controls (− / +) on hover ===== */
+  .bullet-controls {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(calc(-50% - 2px));
+    display: flex;
+    gap: 6px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s;
+    z-index: 5;
+    user-select: none;
+  }
+  body:not(.overview-active) .doc-bullets > li:hover > .bullet-controls,
+  body:not(.overview-active) .doc-bullets > li[contenteditable="plaintext-only"] > .bullet-controls {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  /* 빈 li 편집 시 편집 영역(green border) 가시화 + 커서 잡힘 + ±버튼 공간 확보 */
+  .doc-bullets > li[contenteditable="plaintext-only"] {
+    min-height: calc(var(--doc-bullets-size) * var(--font-scale) * 1.45);
+    padding-right: 80px;
+  }
+  /* (li-entering 트랜지션 제거 — 클릭 즉시 전체 등장으로 변경됨) */
+  /* 삭제 시 부드럽게 축소 — height + margin-top(=gap) 동시 트랜지션 */
+  .doc-bullets > li.li-leaving {
+    overflow: hidden !important;
+    max-height: var(--target-h, 120px);
+    min-height: 0 !important;
+    opacity: 1;
+    transition: max-height 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+                opacity 0.28s ease-out,
+                margin-top 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .doc-bullets > li.li-leaving.li-left {
+    max-height: 0 !important;
+    opacity: 0;
+    margin-top: 0 !important;
+  }
+  .bullet-controls .btn-bullet {
+    width: 28px; height: 28px;
+    border: none;
+    background: transparent;
+    color: var(--accent);
+    opacity: 0.45;
+    font-size: 24px; font-weight: 800;
+    line-height: 1;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'SFProDisplay','SF Pro Display',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;
+    padding: 0;
+    transition: opacity 0.12s;
+  }
+  .bullet-controls .btn-bullet:hover {
+    opacity: 1;
+  }
+  .overview-clone .bullet-controls,
+  .overview-clone .title-add-list { display: none !important; }
+
+  /* Title-only slide: + 리스트 추가 button */
+  .doc-title:has(+ .title-add-list),
+  .doc-title:has(+ .doc-bullets) { margin-bottom: 0 !important; }
+  .doc-bullets:has(+ .title-add-list) { margin-bottom: 6px !important; }
+  .title-add-list {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+    margin-top: 0;
+    padding: 0 18px 0 20px;
+    border: none;
+    border-radius: 0;
+    outline: 1.5px dashed var(--text-secondary);
+    outline-offset: -1.5px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: calc(var(--doc-bullets-size) * var(--font-scale));
+    font-weight: 600;
+    line-height: 1.45;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.16s;
+    font-family: 'SFProDisplay','SF Pro Display',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;
+    user-select: none;
+    text-align: left;
+  }
+  .doc-title + .title-add-list { margin-top: 16px; }
+  body:not(.overview-active) .doc-title:hover + .title-add-list,
+  body:not(.overview-active) .title-add-list:hover {
+    opacity: 1;
+  }
+  @keyframes titleAddListSlide { from { transform: translateY(30px); } to { transform: translateY(0); } }
+  .title-add-list.animate {
+    animation: titleAddListSlide 0.55s ease-out 0.2s both;
+  }
+  /* 편집 중인 li가 있으면 항목 추가 버튼 숨김 */
+  .slide:has(.editable[contenteditable="plaintext-only"]) .title-add-list {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: none !important;
+  }
+
+  /* ===== Overview panel ===== */
+  #overview-panel {
+    position: fixed; bottom: 0; left: 0; right: 0; height: 220px;
+    background: #000; z-index: 10000;
+    transform: translateY(100%);
+    transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex; flex-direction: row; align-items: center;
+    border-top: 1px solid rgba(255,255,255,0.22);
+  }
+  #overview-panel.open { transform: translateY(0); }
+  #overview-controls {
+    flex-shrink: 0; width: 210px; height: 100%;
+    padding: 20px 22px; display: flex; flex-direction: column; gap: 4px; justify-content: center;
+    border-right: 1px solid rgba(255,255,255,0.14);
+  }
+  #overview-controls button {
+    width: 100%; padding: 8px 12px; border: none; border-radius: 6px;
+    background: transparent; color: rgba(255,255,255,0.92); font-size: 13px;
+    font-family: inherit; cursor: pointer; text-align: left;
+    display: flex; align-items: center; gap: 8px; transition: background 0.15s;
+  }
+  #overview-controls button:hover { background: rgba(255,255,255,0.08); }
+  #overview-controls button.control-focus,
+  #overview-controls .control-focus {
+    background: rgba(255,255,255,0.14);
+    outline: 1px solid rgba(255,255,255,0.4);
+  }
+  #overview-controls .font-row { display: flex; align-items: center; gap: 4px; padding: 2px 0; border-radius: 6px; }
+  #overview-controls .font-row button { flex: 1; justify-content: center; padding: 6px 4px; }
+  #overview-controls .font-row span { min-width: 42px; text-align: center; font-size: 12px; color: rgba(255,255,255,0.5); }
+
+  #overview-track {
+    flex: 1; height: 100%;
+    display: flex; align-items: center; gap: 14px;
+    padding: 0 48px;
+    overflow-x: auto; scroll-behavior: smooth;
+    scrollbar-width: none;
+  }
+  #overview-track::-webkit-scrollbar { display: none; }
+  .overview-item {
+    flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 8px;
+    cursor: pointer; opacity: 0.5; transition: opacity 0.2s;
+  }
+  .overview-item:hover { opacity: 0.8; }
+  .overview-item.overview-focus,
+  .overview-item.overview-current { opacity: 1; }
+  .overview-thumb {
+    width: 180px; height: 96px;
+    overflow: hidden; position: relative; border-radius: 8px;
+    border: 2px solid rgba(255,255,255,0.18);
+    background: var(--bg);
+  }
+  .overview-item.overview-focus .overview-thumb { border-color: var(--accent); }
+  .overview-item.overview-current .overview-thumb { border-color: rgba(255,255,255,0.85); }
+  .overview-item.overview-focus.overview-current .overview-thumb { border-color: var(--accent); }
+  .overview-clone {
+    width: var(--canvas-w) !important; height: 1080px !important;
+    position: absolute !important; top: 0 !important; left: 0 !important;
+    transform: scale(0.08824) !important; transform-origin: top left !important;
+    opacity: 1 !important; pointer-events: none !important;
+  }
+  .overview-clone .animate { animation: none !important; opacity: 1 !important; transform: none !important; }
+  .overview-num {
+    font-size: 11px; color: rgba(255,255,255,0.48);
+    font-family: 'SFProDisplay'; font-weight: 500;
+  }
+  .overview-item.overview-focus .overview-num { color: rgba(255,255,255,0.95); }
+  .overview-item.overview-current .overview-num { color: #fff; }
+
+  /* ===== Print ===== */
+  @media print {
+    .slide-nav, #overview-panel, .progress-bar { display: none !important; }
+    .slide { page-break-after: always; }
+  }
+</style>
+</head>
+<body>
+
+<!-- PROGRESS BAR -->
+<div class="progress-bar" id="progressBar" role="progressbar" aria-label="슬라이드 진행" style="width: 74.0741%;"></div>
+
+<!-- SLIDES WRAPPER -->
+<div class="slides-wrapper" id="slidesWrapper" style="height: 1080px; transform: translate(108.556px, 0px) scale(0.775926);">
+
+  <!-- ===== Page 0 — Cover (ref 1.png) ===== -->
+  <section class="slide slide-cover">
+    <h1 class="cover-title animate delay-1 editable" data-edit-id="e-0-0" style="">정밀 타격 대시보드 및<br>카드앱의 <font color="#00b85e">세이버 메트릭스 </font>제안</h1>
+    <div class="cover-author animate delay-3" style="">
+      <div class="editable" data-edit-id="e-0-0" style="font-size: 28px;">UX Insight팀</div>
+      <div class="editable" data-edit-id="e-0-1">2026. 4. 28</div>
+    </div>
+  </section>
+
+  <!-- ===== Page 1 — 세그별 명칭 정의 (ref 0.png) ===== -->
+  <section class="slide slide-doc slide-segments">
+    <h2 class="doc-title animate delay-1 editable" data-edit-id="e-1-0" style="">세그별 명칭 정의</h2><button type="button" class="title-add-list animate">+ 새 항목 추가</button>
+    <div class="seg-block animate delay-2" style="">
+      <div class="seg-track-label editable" data-edit-id="e-1-1">ACQUISITION TRACK</div>
+      <table class="seg-table">
+        <thead>
+          <tr><th class="editable" data-edit-id="e-1-2">미설치자</th><th class="editable" data-edit-id="e-1-3">장기 미이용자</th><th class="editable" data-edit-id="e-1-4">간헐 이용자</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="editable" data-edit-id="e-1-5">No Show</td><td class="editable" data-edit-id="e-1-6" contenteditable="false">Long-D</td><td class="editable" data-edit-id="e-1-7">On-Off</td></tr>
+          <tr><td class="editable" data-edit-id="e-1-8">Newbie</td><td class="editable" data-edit-id="e-1-9" contenteditable="false">Long-Lost</td><td class="editable" data-edit-id="e-1-10">Nomad</td></tr>
+          <tr><td class="editable" data-edit-id="e-1-11">Cold</td><td class="editable" data-edit-id="e-1-12" contenteditable="false">Churn</td><td class="editable" data-edit-id="e-1-13">Float</td></tr>
+          <tr><td class="editable" data-edit-id="e-1-14">Hiding</td><td class="editable" data-edit-id="e-1-15">Missing</td><td class="editable" data-edit-id="e-1-16">Wandering</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="seg-block muted animate delay-4" style="">
+      <div class="seg-track-label editable" data-edit-id="e-1-17">RETENTION TRACK</div>
+      <table class="seg-table">
+        <thead>
+          <tr><th class="editable" data-edit-id="e-1-18">Light</th><th class="editable" data-edit-id="e-1-19" contenteditable="false">Casual</th><th class="editable" data-edit-id="e-1-20">Power</th></tr>
+        </thead>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===== Page 2 — 대시보드 V.08 인트로 (ref 2.png) ===== -->
+  <section class="slide slide-intro">
+    <div class="slide-intro-body">
+      <h2 class="doc-title animate editable" data-edit-id="e-2-0" style="">대시보드 V.08</h2><button type="button" class="title-add-list animate">+ 새 항목 추가</button>
+      <h2 class="slide-title sm animate delay-1 editable" data-edit-id="e-2-1" style="">정교한 세그멘테이션 기반<br>사용자 현황 파악 및 이상 징후 조기 감지</h2>
+      <div class="intro-cards">
+        <div class="intro-card animate delay-2" style="">
+          <h3 class="editable" data-edit-id="e-2-2">세그별 사용자 수<br>및 전월 동기 대비 증감</h3>
+        </div>
+        <div class="intro-card animate delay-3" style="">
+          <h3 class="editable" data-edit-id="e-2-3">세그별 사용자 속성<br>(보유 카드, 연령, 결제 횟수)</h3>
+        </div>
+        <div class="intro-card animate delay-4" style="">
+          <h3 class="editable" data-edit-id="e-2-4">Retention 트랙 사용자<br>로그인 일수 전월 동기 비교</h3>
+        </div>
+      </div>
+    </div>
+    <div class="intro-footer animate delay-5" style="">
+      <div class="main editable" data-edit-id="e-2-5" style="font-size: 32px;">현상 파악을 위한 대시보드를 빠르게 구축<br></div>
+      <div class="sub editable" data-edit-id="e-2-6" style="font-size: 32px;">단, 데이터 해석 및 활성화 방안은 바이위클리 단위, UXI팀 주도로 공유</div>
+    </div>
+  </section>
+
+  <!-- ===== Page 3 — 대시보드 V.08 > 세그별 현황 (ref 3.png) ===== -->
+  <section class="slide slide-doc">
+    <h2 class="doc-title animate delay-1 editable" data-edit-id="e-3-0" style="">대시보드 V.08 &gt; 세그별 현황</h2>
+    <ul class="doc-bullets animate delay-2" style="" data-bullets-id="b-3">
+      <li class="editable" data-edit-id="e-3-1">Acquisition-Retention 트랙 6개 세그먼트의 주 단위 현황 모니터링<span class="bullet-controls" contenteditable="false"><button type="button" class="btn-bullet btn-minus" title="항목 삭제">−</button><button type="button" class="btn-bullet btn-plus" title="항목 추가">+</button></span></li>
+      <li class="editable" data-edit-id="e-3-2">전월 대비 증감 기준, 이상 징후 자동 감지  + 세그 카드 클릭 시 신판 건수·보유카드 상세 정보 확인<span class="bullet-controls" contenteditable="false"><button type="button" class="btn-bullet btn-minus" title="항목 삭제">−</button><button type="button" class="btn-bullet btn-plus" title="항목 추가">+</button></span></li>
+    </ul>
+    <div class="doc-image-wrap animate delay-3" style="">
+      <img src="imgs/img_3.png" alt="세그별 현황 대시보드">
+    </div>
+  </section>
+
+  <!-- ===== Page 4 — 대시보드 V.08 > 이탈 조기 경보 (ref 4.png) ===== -->
+  <section class="slide slide-doc">
+    <h2 class="doc-title animate delay-1 editable" data-edit-id="e-4-0" style="">대시보드 V.08 &gt; 이탈 조기 경보</h2>
+    <ul class="doc-bullets animate delay-2" style="" data-bullets-id="b-4">
+      <li class="editable" data-edit-id="e-4-1">Retention 트랙 3개 세그의 당월 누적 로그인 일수를 전월 동일 주차와 주별 비교 (세그는 전월 마감 기준)<span class="bullet-controls" contenteditable="false"><button type="button" class="btn-bullet btn-minus" title="항목 삭제">−</button><button type="button" class="btn-bullet btn-plus" title="항목 추가">+</button></span></li>
+      <li class="editable" data-edit-id="e-4-2">평균 로그인 일수 감소 시 이탈 징후로 판단, 집중 관리 대상 조기 식별 (평일/휴일 수 차이 병기)<span class="bullet-controls" contenteditable="false"><button type="button" class="btn-bullet btn-minus" title="항목 삭제">−</button><button type="button" class="btn-bullet btn-plus" title="항목 추가">+</button></span></li>
+    </ul>
+    <div class="doc-image-wrap animate delay-3" style="">
+      <img src="imgs/img_4.png" alt="이탈 조기 경보 대시보드">
+    </div>
+  </section>
+
+  <!-- ===== Page 5 — 야구 vs 카드앱 (ref 5.png) ===== -->
+  <section class="slide slide-doc">
+    <h2 class="doc-title animate delay-1 editable" data-edit-id="e-5-0" style="">카드앱의 세이버 메트릭스 제안</h2><button type="button" class="title-add-list animate">+ 새 항목 추가</button>
+    <div class="attn-center" style="padding-top: 120px;">
+      <div class="head-center animate delay-2 editable" style="margin-bottom: 110px;" data-edit-id="e-5-1">야구가 세이버 메트릭스를 통해 선수의 기여를 재정의 했듯<br>카드앱도 앱의 질적 성장을 이끄는 기여 요인을 재정의</div>
+      <div class="compare-rounded animate delay-3" style="">
+        <div class="cmp-row">
+          <div class="cmp-emoji editable" data-edit-id="e-5-2"><span class="ico editable" data-edit-id="e-5-3">⚾</span><span class="editable" data-edit-id="e-5-4">야구</span></div>
+          <div class="cmp-from editable" data-edit-id="e-5-5">타율, 평균자책점</div>
+          <div class="cmp-arrow editable" data-edit-id="e-5-6">→</div>
+          <div class="cmp-to editable" data-edit-id="e-5-7">OPS, WHIP, WAR, WPA</div>
+        </div>
+        <div class="cmp-row">
+          <div class="cmp-emoji editable" data-edit-id="e-5-8"><span class="ico editable" data-edit-id="e-5-9">💳</span><span class="editable" data-edit-id="e-5-10">카드앱</span></div>
+          <div class="cmp-from editable" data-edit-id="e-5-11">MAU, 이용률</div>
+          <div class="cmp-arrow editable" data-edit-id="e-5-12">→</div>
+          <div class="cmp-to editable" data-edit-id="e-5-13">FAI, RDI, VRI</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Page 6 — 라이프 사이클 (ref 6.png) ===== -->
+  <section class="slide slide-doc">
+    <h2 class="doc-title animate delay-1 editable" data-edit-id="e-6-0" style="">카드앱의 세이버 메트릭스 제안</h2><button type="button" class="title-add-list animate">+ 새 항목 추가</button>
+    <div class="attn-center">
+      <div class="head-center animate delay-2 editable" data-edit-id="e-6-1" style="">사용자 라이프 사이클을 관통하는 지표 체계</div>
+    <div class="lc-stages animate delay-3" style="">
+      <div class="lc-stage editable" data-edit-id="e-6-2">신규 사용자</div>
+      <div class="lc-stage editable" data-edit-id="e-6-3">정기 사용자</div>
+      <div class="lc-stage editable" data-edit-id="e-6-4">습관적 사용자</div>
+    </div>
+    <div class="lc-cards animate delay-4" style="">
+      <div class="lc-card">
+        <div class="head editable" data-edit-id="e-6-5"><span class="editable" data-edit-id="e-6-6">FAI</span><span class="en editable" data-edit-id="e-6-7">First Action Index</span></div>
+        <div class="body">
+          <div class="editable" data-edit-id="e-6-8">신규 회원이 다음 달에도<br>돌아오게 하기 위한 목적</div>
+          <div class="editable" data-edit-id="e-6-9">처음 앱을 사용하는 사람이<br>재방문 기여 기능을 경험했는가</div>
+        </div>
+      </div>
+      <div class="lc-card">
+        <div class="head editable" data-edit-id="e-6-10"><span class="editable" data-edit-id="e-6-11">RDI</span><span class="en editable" data-edit-id="e-6-12">Revisit Driver Index</span></div>
+        <div class="body">
+          <div class="editable" data-edit-id="e-6-13">이번 달 방문자가 다음 달에도<br>돌아오게 하기 위한 목적</div>
+          <div class="editable" data-edit-id="e-6-14">재방문률에 기여하는 기능을<br>얼마나 잘 사용하고 있는가</div>
+        </div>
+      </div>
+      <div class="lc-card">
+        <div class="head editable" data-edit-id="e-6-15"><span class="editable" data-edit-id="e-6-16">VRI</span><span class="en editable" data-edit-id="e-6-17">Visit Regularity Index</span></div>
+        <div class="body">
+          <div class="editable" data-edit-id="e-6-18">3개월 연속 방문으로<br>앱 이용을 습관화 하기 위한 목적<br></div>
+          <div class="editable" data-edit-id="e-6-19">중도 이탈없이 3개월 동안<br>앱을 연속 방문 하였는가 <br></div>
+        </div>
+      </div>
+    </div>
+    </div>
+  </section>
+
+  <!-- ===== Page 7 — FAI 정의/공식 (ref 7.png) ===== -->
+  <section class="slide slide-doc">
+    <h2 class="doc-title animate delay-1 editable" data-edit-id="e-7-0" style="">FAI (First Action Index)</h2>
+    <ul class="doc-bullets animate delay-2" style="" data-bullets-id="b-7">
+      <li class="editable" data-edit-id="e-7-1">신규 회원 대상, '재방문 기여 기능(온보딩 기능)'을 정의하고 충족 여부를 측정<span class="bullet-controls" contenteditable="false"><button type="button" class="btn-bullet btn-minus" title="항목 삭제">−</button><button type="button" class="btn-bullet btn-plus" title="항목 추가">+</button></span></li>
+      <li class="editable" data-edit-id="e-7-2">다음 달 재방문 및 세그 전환 가능성을 진단하는 선행 지표로 활용<span class="bullet-controls" contenteditable="false"><button type="button" class="btn-bullet btn-minus" title="항목 삭제">−</button><button type="button" class="btn-bullet btn-plus" title="항목 추가">+</button></span></li>
+    </ul>
+    <div class="attn-center">
+      <div class="formula-box animate delay-3" style="">
+        <div class="formula"><span class="editable" data-edit-id="e-7-3">FAI&nbsp;&nbsp;=&nbsp;&nbsp;온보딩 달성자 수&nbsp;&nbsp;/&nbsp;&nbsp;신규 회원 수</span><span class="star editable" data-edit-id="e-7-4">*</span><span class="editable" data-edit-id="e-7-5">100</span></div>
+      </div>
+      <div class="formula-notes animate delay-4" style="">
+        <p class="editable" data-edit-id="e-7-6">온보딩  기능 달성자 수 = 재방문 기여 기능 이용 완료 시 ‘1’로 취급 (미이용 시 ‘0’)</p>
+        <p class="editable" data-edit-id="e-7-7">신규 회원 수 = 당월 앱 가입자 수</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Page 8 — FAI 기능 정의 (ref 8.png) ===== -->
+  <section class="slide slide-doc">
+    <h2 class="doc-title animate delay-1 editable" data-edit-id="e-8-0" style="">FAI (First Action Index)</h2>
+    <ul class="doc-bullets animate delay-2" style="" data-bullets-id="b-8">
+      <li class="editable" data-edit-id="e-8-1">'24.9월 발행된 리텐션 데이터 인사이트 리포트 내 '재방문 기여 기능' 참고<span class="bullet-controls" contenteditable="false"><button type="button" class="btn-bullet btn-minus" title="항목 삭제">−</button><button type="button" class="btn-bullet btn-plus" title="항목 추가">+</button></span></li>
+      <li class="hl editable" data-edit-id="e-8-2">신규 회원 대상 재방문 기여 기능은 26년 기준 현행화 필요<span class="bullet-controls" contenteditable="false"><button type="button" class="btn-bullet btn-minus" title="항목 삭제">−</button><button type="button" class="btn-bullet btn-plus" title="항목 추가">+</button></span></li>
+    </ul>
+    <div class="attn-center">
+    <div class="bh1 animate delay-3" style="">
+      <div class="bhx-card">
+        <div class="head editable" data-edit-id="e-8-3">'24.9월 Retention Data Insight Report &gt; 재방문 기여 기능</div>
+        <div class="body">
+          <h4 class="editable" data-edit-id="e-8-4">신규 회원</h4>
+          <ul>
+            <li class="editable" data-edit-id="e-8-5">알림함, 최근이용내역, 앱카드</li>
+            <li class="editable" data-edit-id="e-8-6">세 개가 AND 조건일 때, 미 이용자 대비 다음달 재방문률이 30프로 높아짐</li>
+          </ul>
+        </div>
+      </div>
+      <div class="bhx-card">
+        <div class="head editable" data-edit-id="e-8-7">측정 방식</div>
+        <div class="body">
+          <ul>
+            <li class="editable" data-edit-id="e-8-8">온보딩 달성 조건 : 알림함 AND 이용내역 AND 앱카드 이용</li>
+            <li class="editable" data-edit-id="e-8-9">세 개 모두 충족 = 1 / 하나라도 빠지면 '0'</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    </div>
+  </section>
+
+  <!-- ===== Page 9 — FAI 활용 (ref 9.png) ===== -->
+  <section class="slide slide-doc">
+    <h2 class="doc-title animate delay-1 editable" data-edit-id="e-9-0" style="">FAI (First Action Index)</h2>
+    <ul class="doc-bullets animate delay-2" style="" data-bullets-id="b-9">
+      <li class="editable" data-edit-id="e-9-1">월간 기준 신규 회원의 FAI 달성률 및 미달성자 비율 트레킹<span class="bullet-controls" contenteditable="false"><button type="button" class="btn-bullet btn-minus" title="항목 삭제">−</button><button type="button" class="btn-bullet btn-plus" title="항목 추가">+</button></span></li>
+      <li class="editable" data-edit-id="e-9-2">미달성 영역 확인 + 기능 이용 유도를 위한 실행 과제로 연결<span class="bullet-controls" contenteditable="false"><button type="button" class="btn-bullet btn-minus" title="항목 삭제">−</button><button type="button" class="btn-bullet btn-plus" title="항목 추가">+</button></span></li>
+    </ul>
+    <div class="dash-wrap animate delay-3" style="">
+      <img src="imgs/img_9.png" alt="FAI 대시보드">
+    </div>
+    <p class="dash-cap animate delay-4 editable" data-edit-id="e-9-3" style="">ex) 신규 회원의 FAI 및 병목 기능 정보</p>
+  </section>
+
+  <!-- ===== Page 10 — RDI 정의/공식 (ref 10.png) ===== -->
+  <section class="slide slide-doc">
+    <h2 class="doc-title animate delay-1 editable" data-edit-id="e-10-0" style="">RDI (Revisit Driver Index)</h2>
+    <ul class="doc-bullets animate delay-2" style="" data-bullets-id="b-10">
+      <li class="editable" data-edit-id="e-10-1">기존 회원 대상, '재방문 기여 기능'을 정의하고 각 세그별 충족 여부를 측정<span class="bullet-controls" contenteditable="false"><button type="button" class="btn-bullet btn-minus" title="항목 삭제">−</button><button type="button" class="btn-bullet btn-plus" title="항목 추가">+</button></span></li>
+      <li class="editable" data-edit-id="e-10-2">다음 달 재방문 및 세그 전환 가능성을 진단하는 선행 지표로 활용<span class="bullet-controls" contenteditable="false"><button type="button" class="btn-bullet btn-minus" title="항목 삭제">−</button><button type="button" class="btn-bullet btn-plus" title="항목 추가">+</button></span></li>
+    </ul>
+    <div class="attn-center">
+      <div class="formula-box animate delay-3" style="">
+        <div class="formula"><span class="editable" data-edit-id="e-10-3">RDI&nbsp;&nbsp;=&nbsp;&nbsp;달성자 수&nbsp;&nbsp;/&nbsp;&nbsp;이용자 수</span><span class="star editable" data-edit-id="e-10-4">*</span><span class="editable" data-edit-id="e-10-5">100</span></div>
+      </div>
+      <div class="formula-notes animate delay-4" style="">
+        <p class="editable" data-edit-id="e-10-6">달성자 수 = 재방문 기여 기능 이용 완료 시 '1'로 취급 (미이용 시 '0')</p>
+        <p class="editable" data-edit-id="e-10-7">이용자 수 = 각 세그별 이용자수</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Page 11 — RDI 기능 정의 (ref 11.png) ===== -->
+  <section class="slide slide-doc">
+    <h2 class="doc-title animate delay-1 editable" data-edit-id="e-11-0" style="">RDI (Revisit Driver Index)</h2>
+    <ul class="doc-bullets animate delay-2" style="" data-bullets-id="b-11">
+      <li class="editable" data-edit-id="e-11-1">'24.9월 발행된 리텐션 데이터 인사이트 리포트 내 '재방문 기여 기능' 참고<span class="bullet-controls" contenteditable="false"><button type="button" class="btn-bullet btn-minus" title="항목 삭제">−</button><button type="button" class="btn-bullet btn-plus" title="항목 추가">+</button></span></li>
+      <li class="hl editable" data-edit-id="e-11-2">명세서, 최근이용내역 등 주요 레거시 서비스 업데이트로 '재방문 기여 기능' 현행화 필요<span class="bullet-controls" contenteditable="false"><button type="button" class="btn-bullet btn-minus" title="항목 삭제">−</button><button type="button" class="btn-bullet btn-plus" title="항목 추가">+</button></span></li>
+    </ul>
+    <div class="attn-center">
+    <div class="bh1 animate delay-3" style="">
+      <div class="bhx-card">
+        <div class="head editable" data-edit-id="e-11-3">'24.9월 Retention Data Insight Report &gt; 재방문 기여 기능</div>
+        <div class="body two-col">
+          <div>
+            <h4 class="editable" data-edit-id="e-11-4">기존 회원 재방문 기여 기능</h4>
+            <ul>
+              <li class="editable" data-edit-id="e-11-5">명세서, 알림함, 소비캘린더 중 하나라도 이용하는 경우, 3개월 연속 앱 이용률이 미 이용자 대비 15-16% 상승</li>
+            </ul>
+          </div>
+          <div>
+            <h4 class="editable" data-edit-id="e-11-6">혜택 관련 재방문 기여 기능</h4>
+            <ul>
+              <li class="editable" data-edit-id="e-11-7">혜택 열람, 받기, 신청, 받은 선물 열람, 실적 충족 확인, CT 더보기 등</li>
+              <li class="editable" data-edit-id="e-11-8">위 기능 중 하나라도 이용하는 경우, 미 이용자 대비 3개월 연속 앱 이용률이 10% 이상 상승</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    </div>
+  </section>
+
+  <!-- ===== Page 12 — RDI 분리 측정 (ref 12.png) ===== -->
+  <section class="slide slide-doc">
+    <h2 class="doc-title animate delay-1 editable" data-edit-id="e-12-0" style="">RDI (Revisit Driver Index)</h2>
+    <ul class="doc-bullets animate delay-2" style="" data-bullets-id="b-12">
+      <li class="editable" data-edit-id="e-12-1">루틴 RDI : 명세서, 알림함, 소비캘린더, 3개 기능 포함, 카드앱 방문 습관화 기여 기능에 대한 이용률<span class="bullet-controls" contenteditable="false"><button type="button" class="btn-bullet btn-minus" title="항목 삭제">−</button><button type="button" class="btn-bullet btn-plus" title="항목 추가">+</button></span></li>
+      <li class="editable" data-edit-id="e-12-2">혜택 RDI : 혜택 열람, 받기, 신청 및 실적 확인 등 혜택 중심의 탐색/관리/활용 기능에 대한 이용률<span class="bullet-controls" contenteditable="false"><button type="button" class="btn-bullet btn-minus" title="항목 삭제">−</button><button type="button" class="btn-bullet btn-plus" title="항목 추가">+</button></span></li>
+    </ul>
+    <div class="attn-center">
+    <div class="bh2 animate delay-3" style="">
+      <div class="bhx-card rdi-card">
+        <div class="head editable" style="text-align:center;" data-edit-id="e-12-3">루틴 RDI</div>
+        <div class="body">
+          <div class="lede editable" data-edit-id="e-12-4">루틴 달성 조건</div>
+          <p class="cond editable" data-edit-id="e-12-5">명세서 OR 알림함 OR 소비캘린더 이용<br>세 개 중 하나라도 충족 시 = 1<br>모두 미충족시 = 0</p>
+          <div class="formula-mini"><span class="editable" data-edit-id="e-12-6">루틴 RDI = 달성자 수 / 이용자 수</span><span class="star editable" data-edit-id="e-12-7"> * </span><span class="editable" data-edit-id="e-12-8">100</span></div>
+        </div>
+      </div>
+      <div class="bhx-card rdi-card">
+        <div class="head editable" style="text-align:center;" data-edit-id="e-12-9">혜택 RDI</div>
+        <div class="body">
+          <div class="lede editable" data-edit-id="e-12-10" contenteditable="false" style="">혜택 달성 조건</div>
+          <p class="cond editable" data-edit-id="e-12-11" contenteditable="false">혜택 열람 OR 받기 OR 신청 OR 받은 선물 OR 실적확인 OR CT 더보기<br>하나라도 충족 시 = 1<br>모두 미충족시 = 0</p>
+          <div class="formula-mini"><span class="editable" data-edit-id="e-12-12">혜택 RDI = 달성자 수 /  이용자 수</span><span class="star editable" data-edit-id="e-12-13"> * </span><span class="editable" data-edit-id="e-12-14">100</span></div>
+        </div>
+      </div>
+    </div>
+    </div>
+  </section>
+
+  <!-- ===== Page 13 — RDI 활용 (ref 13.png) ===== -->
+  <section class="slide slide-doc">
+    <h2 class="doc-title animate delay-1 editable" data-edit-id="e-13-0" style="" contenteditable="false">RDI (Revisit Driver Index)</h2>
+    <ul class="doc-bullets animate delay-2" style="" data-bullets-id="b-13">
+      <li class="editable" data-edit-id="e-13-1">전월 대비 RDI 달성률 및 미달성자 비율 트레킹<span class="bullet-controls" contenteditable="false"><button type="button" class="btn-bullet btn-minus" title="항목 삭제">−</button><button type="button" class="btn-bullet btn-plus" title="항목 추가">+</button></span></li>
+      <li class="editable" data-edit-id="e-13-2">세그별 미달성 영역 확인 + 기능 이용 유도를 위한 실행 과제로 연결<span class="bullet-controls" contenteditable="false"><button type="button" class="btn-bullet btn-minus" title="항목 삭제">−</button><button type="button" class="btn-bullet btn-plus" title="항목 추가">+</button></span></li>
+    </ul>
+    <div class="dash-wrap animate delay-3" style="">
+      <img src="imgs/img_13.png" alt="RDI 대시보드">
+    </div>
+    <p class="dash-cap animate delay-4 editable" data-edit-id="e-13-3" style="">ex) 라이트/캐쥬얼/파워 유저별 루틴/혜택 RDI 및 병목 기능 정보</p>
+  </section>
+
+  <!-- ===== Page 14 — VRI 정의/공식 (ref 14.png) ===== -->
+  <section class="slide slide-doc">
+    <h2 class="doc-title animate delay-1 editable" data-edit-id="e-14-0" style="">VRI (Visit Recurrence Index)</h2>
+    <ul class="doc-bullets animate delay-2" style="" data-bullets-id="b-14">
+      <li class="editable" data-edit-id="e-14-1">3개월 연속 사용 여부를 트레킹하여, 앱 방문 습관화 여부를 측정<span class="bullet-controls" contenteditable="false"><button type="button" class="btn-bullet btn-minus" title="항목 삭제">−</button><button type="button" class="btn-bullet btn-plus" title="항목 추가">+</button></span></li>
+      <li class="editable" data-edit-id="e-14-2">연속 사용 미달성 현황을 감지, RDI (Revisit Driver Index)와 함께 모니터링하여 연속 방문 루틴을 만드는 것이 목표<span class="bullet-controls" contenteditable="false"><button type="button" class="btn-bullet btn-minus" title="항목 삭제">−</button><button type="button" class="btn-bullet btn-plus" title="항목 추가">+</button></span></li>
+    </ul>
+    <div class="attn-center">
+      <div class="formula-box animate delay-3" style="">
+        <div class="formula"><span class="editable" data-edit-id="e-14-3">VRI&nbsp;&nbsp;=&nbsp;&nbsp;3개월 연속 사용자 수&nbsp;&nbsp;/&nbsp;&nbsp;전체 사용자 수</span><span class="star editable" data-edit-id="e-14-4">*</span><span class="editable" data-edit-id="e-14-5">100</span></div>
+      </div>
+      <div class="formula-notes animate delay-4" style="">
+        <p class="editable" data-edit-id="e-14-6">세그별 방문률 집계 및 미달성자 이용 패턴 동시 트레킹</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Page 15 — VRI 4 패턴 (ref 15.png) ===== -->
+  <section class="slide slide-doc">
+    <h2 class="doc-title animate delay-1 editable" data-edit-id="e-15-0" style="">VRI (Visit Recurrence Index)</h2>
+    <ul class="doc-bullets animate delay-2" style="" data-bullets-id="b-15">
+      <li class="editable" data-edit-id="e-15-1">당월 방문했으나, 3개월 연속 미 방문자의 이용 패턴을 동시 트레킹 → 패턴별 문제 진단 <span class="bullet-controls" contenteditable="false"><button type="button" class="btn-bullet btn-minus" title="항목 삭제">−</button><button type="button" class="btn-bullet btn-plus" title="항목 추가">+</button></span></li>
+      <li class="editable" data-edit-id="e-15-2">이탈 위험이 높은 그룹에 대해 재방문 기여 기능 이용 현황 교차 점검<span class="bullet-controls" contenteditable="false"><button type="button" class="btn-bullet btn-minus" title="항목 삭제">−</button><button type="button" class="btn-bullet btn-plus" title="항목 추가">+</button></span></li>
+    </ul>
+    <div class="attn-center">
+      <div class="pat4 animate delay-3" style="">
+        <div class="pat4-card">
+          <div class="code editable" data-edit-id="e-15-3">OOO</div>
+          <div class="top editable" data-edit-id="e-15-4">3개월 연속 방문으로<br>습관화 완성</div>
+          <div class="bot editable" data-edit-id="e-15-5">유지 관리 그룹</div>
+        </div>
+        <div class="pat4-card">
+          <div class="code editable" data-edit-id="e-15-6">XOO</div>
+          <div class="top editable" data-edit-id="e-15-7">2개월 연속 방문<br>습관화 진행 또는 이탈 후 회복</div>
+          <div class="bot editable" data-edit-id="e-15-8">다음달 방문 유도 필수<br>RDI*점검 필요</div>
+        </div>
+        <div class="pat4-card">
+          <div class="code editable" data-edit-id="e-15-9">OXO</div>
+          <div class="top editable" data-edit-id="e-15-10">격월 방문<br>방문 루틴이 미형성</div>
+          <div class="bot editable" data-edit-id="e-15-11">위험 그룹으로 개입 필요<br>RDI* 점검 필요</div>
+        </div>
+        <div class="pat4-card">
+          <div class="code editable" data-edit-id="e-15-12">XXO</div>
+          <div class="top editable" data-edit-id="e-15-13">당월만 방문<br>신규 / 장기 미사용자유입</div>
+          <div class="bot editable" data-edit-id="e-15-14">다음 달 방문 유도 필수<br>FAI* 점검 필요</div>
+        </div>
+      </div>
+      <div class="pat4-foot animate delay-4 editable" data-edit-id="e-15-15" style="" contenteditable="false">*RDI (Revisit Driver Index) : 기존 회원 기준, 재방문 기여 기능 이용률<br>*FAI (First Action Indx) : 신규 회원 기준, 재방문 기여 기능 이용률</div>
+    </div>
+  </section>
+
+  <!-- ===== Page 16 — VRI 활용 (ref 16.png) ===== -->
+  <section class="slide slide-doc">
+    <h2 class="doc-title animate delay-1 editable" data-edit-id="e-16-0" style="">VRI (Visit Recurrence Index)</h2><button type="button" class="title-add-list animate">+ 새 항목 추가</button>
+    <div class="dash-wrap dual animate delay-2" style="">
+      <div class="dash-cell">
+        <img src="imgs/img_16_1.png" alt="VRI 대시보드 1">
+        <p class="dash-cap editable" data-edit-id="e-16-1">연속 방문 미달성자의 경우 RDI (재방문 기여 기능 이용률) 교차 점검</p>
+      </div>
+      <div class="dash-cell">
+        <img src="imgs/img_16_2.png" alt="VRI 대시보드 2">
+        <p class="dash-cap editable" data-edit-id="e-16-2">이번 달만 방문한 경우, FAI (신규회원 재방문 기여 기능) 교차 점검</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Page 17 — LPI 정의/공식 (ref 17.png) ===== -->
+  <section class="slide slide-doc">
+    <h2 class="doc-title animate delay-1 editable" data-edit-id="e-17-0" style="">LPI (Lapse Pattern Index) <span class="badge-discuss editable" data-edit-id="e-17-1" contenteditable="false">논의 필요</span></h2>
+    <ul class="doc-bullets animate delay-2" style="" data-bullets-id="b-17">
+      <li class="editable" data-edit-id="e-17-2">당월 방문하지 않은 간헐 사용자가 다음 달 앱을 방문하게 하기 위한 목적  <span class="bullet-controls" contenteditable="false"><button type="button" class="btn-bullet btn-minus" title="항목 삭제">−</button><button type="button" class="btn-bullet btn-plus" title="항목 추가">+</button></span></li>
+      <li class="editable" data-edit-id="e-17-3">‘라이트 유저 전환 기여 기능'을 정의하고, 간헐 이용자 대상으로 기능 이용 달성 여부를 측정<span class="bullet-controls" contenteditable="false"><button type="button" class="btn-bullet btn-minus" title="항목 삭제">−</button><button type="button" class="btn-bullet btn-plus" title="항목 추가">+</button></span></li>
+    </ul>
+    <div class="attn-center">
+      <div class="formula-box animate delay-3" style="">
+        <div class="formula"><span class="editable" data-edit-id="e-17-4">LRI&nbsp;&nbsp;=&nbsp;&nbsp;기여 기능 이용자 수&nbsp;/&nbsp;&nbsp;간헐 이용자 수</span><span class="star editable" data-edit-id="e-17-5">*</span><span class="editable" data-edit-id="e-17-6">100</span></div>
+      </div>
+      <div class="formula-notes animate delay-4" style="">
+        <p class="editable" data-edit-id="e-17-7">기여 기능 달성자 수 =  재방문 기여 기능 이용 완료 시 ‘1’로 취급 (미이용 시 ‘0’)</p>
+        <p class="editable" data-edit-id="e-17-8">간헐  이용자 = 앱 경험자 중  MAU 미포함 회원 (최근 3개월 이용 기록 기준)</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Page 18 — LPI 기능 정의 (ref 18.png) ===== -->
+  <section class="slide slide-doc">
+    <h2 class="doc-title animate delay-1 editable" data-edit-id="e-18-0" style="">LPI (Lapse Pattern Index) <span class="badge-discuss editable" data-edit-id="e-18-1">논의 필요</span></h2>
+    <ul class="doc-bullets animate delay-2" style="" data-bullets-id="b-18">
+      <li class="hl editable" data-edit-id="e-18-2">가설을 기준으로 지표를 정의, 라이트 유저 전환 기능 정의를 위한 데이터 분석 필요 <span class="bullet-controls" contenteditable="false"><button type="button" class="btn-bullet btn-minus" title="항목 삭제">−</button><button type="button" class="btn-bullet btn-plus" title="항목 추가">+</button></span></li>
+    </ul>
+    <div class="attn-center">
+    <div class="bh2 animate delay-3" style="">
+      <div class="bhx-card">
+        <div class="head editable" style="text-align:center;" data-edit-id="e-18-3">라이트 유저 전환 기여 기능 정의</div>
+        <div class="body" style="align-items:center;text-align:center;justify-content:center;gap:36px;">
+          <div style="font-size:calc(24px * var(--font-scale));font-weight:700;line-height:1.7;color:var(--text);" class="editable" data-edit-id="e-18-4">3개월 연속 라이트 유저 대상<br>연속 이용 기능 도출<br></div>
+          <div style="font-size:calc(24px * var(--font-scale));font-weight:700;line-height:1.7;color:var(--text);" class="editable" data-edit-id="e-18-5">간헐 이용자 이용 기능과 비교<br><span style="font-size:1.4em;" class="editable" data-edit-id="e-18-6">↓</span></div>
+          <div style="background:var(--soft-fill);border-radius:16px;padding:32px 40px;width:100%;font-size:calc(24px * var(--font-scale));font-weight:800;line-height:1.55;text-align:center;" class="editable" data-edit-id="e-18-7">라이트 유저만 이용하는 기능<br>= 라이트 유저 전환 기능</div>
+        </div>
+      </div>
+      <div class="bhx-card">
+        <div class="head editable" style="text-align:center;" data-edit-id="e-18-8">측정 방식</div>
+        <div class="body" style="align-items:center;text-align:center;justify-content:center;flex:1;">
+          <div style="font-size:calc(26px * var(--font-scale));font-weight:700;line-height:1.7;color:var(--text);" class="editable" data-edit-id="e-18-9">세그 전환 기여 기능 이용 여부를<br>AND, OR 조건 모두 측정<br>→ 병목 기능 트레킹<br></div>
+        </div>
+      </div>
+    </div>
+    </div>
+  </section>
+
+  <!-- ===== Page 19 — LPI 4 패턴 (ref 19.png) ===== -->
+  <section class="slide slide-doc">
+    <h2 class="doc-title animate delay-1 editable" data-edit-id="e-19-0" style="">LPI (Lapse Pattern Index) <span class="badge-discuss editable" data-edit-id="e-19-1">논의 필요</span></h2>
+    <ul class="doc-bullets animate delay-2" style="" data-bullets-id="b-19">
+      <li class="editable" data-edit-id="e-19-2">간헐 이용자의 이탈 패턴을 동시 트레킹 하여 패턴별 문제 진단<span class="bullet-controls" contenteditable="false"><button type="button" class="btn-bullet btn-minus" title="항목 삭제">−</button><button type="button" class="btn-bullet btn-plus" title="항목 추가">+</button></span></li>
+      <li class="editable" data-edit-id="e-19-3">이탈 위험도에 따라 개입 정도 및 방식을 다르게 접근 <span class="bullet-controls" contenteditable="false"><button type="button" class="btn-bullet btn-minus" title="항목 삭제">−</button><button type="button" class="btn-bullet btn-plus" title="항목 추가">+</button></span></li>
+    </ul>
+    <div class="attn-center">
+      <div class="pat4 animate delay-3" style="">
+        <div class="pat4-card">
+          <div class="code editable" data-edit-id="e-19-4">OOX</div>
+          <div class="top editable" data-edit-id="e-19-5">연속 방문 후 당월 이탈</div>
+          <div class="bot editable" data-edit-id="e-19-6">이탈 초기로<br>재유입 가능성 높음</div>
+        </div>
+        <div class="pat4-card">
+          <div class="code editable" data-edit-id="e-19-7">XOX</div>
+          <div class="top editable" data-edit-id="e-19-8">전월만 방문, 당월 이탈</div>
+          <div class="bot editable" data-edit-id="e-19-9">단발 방문 패턴으로<br>루틴 미형성</div>
+        </div>
+        <div class="pat4-card">
+          <div class="code editable" data-edit-id="e-19-10">OXX</div>
+          <div class="top editable" data-edit-id="e-19-11">2개월 연속 미방문</div>
+          <div class="bot editable" data-edit-id="e-19-12">이탈 진행 중<br>위험 그룹으로 즉시 개입 필요</div>
+        </div>
+        <div class="pat4-card">
+          <div class="code editable" data-edit-id="e-19-13">XXX</div>
+          <div class="top editable" data-edit-id="e-19-14">3개월 연속 미방문</div>
+          <div class="bot editable" data-edit-id="e-19-15">이탈 장기화<br>기존의 개입 방식 전환 필요</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Page 20 — LPI 활용 (ref 20.png) ===== -->
+  <section class="slide slide-doc">
+    <h2 class="doc-title animate delay-1 editable" data-edit-id="e-20-0" style="">LPI (Lapse Pattern Index) <span class="badge-discuss editable" data-edit-id="e-20-1" contenteditable="false">논의 필요</span></h2><button type="button" class="title-add-list animate">+ 새 항목 추가</button>
+    <div class="dash-wrap dual animate delay-2" style="">
+      <img src="imgs/img_20_1.png" alt="LPI 대시보드 1">
+      <img src="imgs/img_20_2.png" alt="LPI 대시보드 2">
+    </div>
+  </section>
+
+  <!-- ===== Page 21 — BA 인트로 (ref 21.png) ===== -->
+  <section class="slide slide-doc">
+    <h2 class="doc-title animate delay-1 editable" data-edit-id="e-21-0" style="">+ BA (Business Attribution)</h2>
+    <ul class="doc-bullets animate delay-2" style="" data-bullets-id="b-21">
+      <li class="editable" data-edit-id="e-21-1">앱의 비즈니스 기여도를 정량화하여 트레킹 할 수 있는 지표<span class="bullet-controls" contenteditable="false"><button type="button" class="btn-bullet btn-minus" title="항목 삭제">−</button><button type="button" class="btn-bullet btn-plus" title="항목 추가">+</button></span></li>
+      <li class="editable" data-edit-id="e-21-2">직접 수익 / 비용 절감 / 간접 수익으로 구분하여 이용자 수 및 비용 가시화<span class="bullet-controls" contenteditable="false"><button type="button" class="btn-bullet btn-minus" title="항목 삭제">−</button><button type="button" class="btn-bullet btn-plus" title="항목 추가">+</button></span></li>
+      <li class="editable" data-edit-id="e-21-3">본부 구성원들에게 일의 의미와 기여도를 숫자로 체감하게 하는 역할<span class="bullet-controls" contenteditable="false"><button type="button" class="btn-bullet btn-minus" title="항목 삭제">−</button><button type="button" class="btn-bullet btn-plus" title="항목 추가">+</button></span></li>
+    </ul>
+    <div class="attn-center">
+    <div class="ba-cards animate delay-3" style="">
+      <div class="ba-card">
+        <div class="head editable" data-edit-id="e-21-4">직접 수익</div>
+        <div class="body">
+          <div class="lede editable" data-edit-id="e-21-5">앱 이용으로 발생한<br>신규/증분 수익</div>
+          <div class="items">
+            <div class="label editable" data-edit-id="e-21-6">주요 항목</div>
+            <ul>
+              <li class="editable" data-edit-id="e-21-7">CA, CL, 리볼빙</li>
+              <li class="editable" data-edit-id="e-21-8">FeeBiz</li>
+              <li class="editable" data-edit-id="e-21-9">생활요금 자동 결제</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="ba-card">
+        <div class="head editable" data-edit-id="e-21-10">비용 절감</div>
+        <div class="body">
+          <div class="lede editable" data-edit-id="e-21-11">디지털 전환으로<br>절감한 OPEX</div>
+          <div class="items">
+            <div class="label editable" data-edit-id="e-21-12">주요 항목</div>
+            <ul>
+              <li class="editable" data-edit-id="e-21-13">우편명세서 → 앱명세서 전환</li>
+              <li class="editable" data-edit-id="e-21-14">마케팅 미동의 → 동의 전환</li>
+              <li class="editable" data-edit-id="e-21-15">혜택 LMS → 앱 푸시 전환</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="ba-card">
+        <div class="head editable" data-edit-id="e-21-16">간접 수익</div>
+        <div class="body">
+          <div class="lede editable" data-edit-id="e-21-17">앱 이용 및 세그 전환에<br>따른 기대 수익</div>
+          <div class="items">
+            <div class="label editable" data-edit-id="e-21-18">주요 항목</div>
+            <ul>
+              <li class="editable" data-edit-id="e-21-19">앱 미이용 → 앱 이용</li>
+              <li class="editable" data-edit-id="e-21-20">Light → Casual 전환</li>
+              <li class="editable" data-edit-id="e-21-21">Casual → Power 전환</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    </div>
+  </section>
+
+  <!-- ===== Page 22 — BA > 직접 수익 (ref 22.png) ===== -->
+  <section class="slide slide-doc">
+    <h2 class="doc-title animate delay-1 editable" data-edit-id="e-22-0" style="">+ BA (Business Attribution) &gt; 직접 수익</h2><button type="button" class="title-add-list animate">+ 새 항목 추가</button>
+    <div class="dash-stack animate delay-2" style="">
+      <img class="img-back" src="imgs/img_22_1.png" alt="BA 직접 수익 대시보드 1">
+      <img class="img-front" src="imgs/img_22_2.png" alt="BA 직접 수익 대시보드 2">
+    </div>
+    <p class="dash-cap animate delay-3 editable" data-edit-id="e-22-1" style="">ex.1) 직접 수익 기여액 : 항목별 이용자 수, 신청 금액 합산, 앱 신청 점유율 및 전월 대비 증감 정보 제공</p>
+  </section>
+
+  <!-- ===== Page 23 — BA > 비용 절감 (ref 23.png) ===== -->
+  <section class="slide slide-doc">
+    <h2 class="doc-title animate delay-1 editable" data-edit-id="e-23-0" style="">+ BA (Business Attribution) &gt; 비용 절감</h2><button type="button" class="title-add-list animate">+ 새 항목 추가</button>
+    <div class="dash-side animate delay-2" style="">
+      <div class="dash-side-img">
+        <img src="imgs/img_23.png" alt="BA 비용 절감 대시보드">
+        <p class="dash-cap editable" data-edit-id="e-23-1">ex.2) 비용 절감 기여액 : 항목별 이용자 수, 절감액 합산, 전환율 현황 및 전월 대비 증감 정보 제공</p>
+      </div>
+      <ul class="dash-side-notes">
+        <li class="editable" data-edit-id="e-23-2">우편명세서 → 앱 명세서 전환 OPEX 절감액 (1년) : 6,152원</li>
+        <li class="editable" data-edit-id="e-23-3">마케팅 미동의 → 동의 전환 OPEX 절감액 (1년) : 6,152원</li>
+        <li class="editable" data-edit-id="e-23-4">혜택 알림 LMS → Push 전환 OPEX 절감액 (1년) : 1,633원</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===== Page 24 — BA > 간접 수익 (ref 24.png) ===== -->
+  <section class="slide slide-doc">
+    <h2 class="doc-title animate delay-1 editable" data-edit-id="e-24-0" style="">+ BA (Business Attribution) &gt; 간접 수익</h2><button type="button" class="title-add-list animate">+ 새 항목 추가</button>
+    <div class="dash-side animate delay-2" style="">
+      <div class="dash-side-img">
+        <img src="imgs/img_24.png" alt="BA 간접 수익 대시보드">
+        <p class="dash-cap editable" data-edit-id="e-24-1">ex.3) 앱 이용에 따른 기대 수익 : 신규 가입 및 세그 전환에 따른 인당 기대 수익 현황</p>
+      </div>
+      <ul class="dash-side-notes">
+        <li class="editable" data-edit-id="e-24-2">앱 미이용 → 이용 기대 신판 수익 (1년) : 8,357원</li>
+        <li class="editable" data-edit-id="e-24-3"><span class="tag-update editable" data-edit-id="e-24-4">[갱신 필요]</span> Lite → Casual 전환 시 기대 수익 : 1,703원 (1회)</li>
+        <li class="editable" data-edit-id="e-24-5"><span class="tag-update editable" data-edit-id="e-24-6">[갱신 필요]</span> Casual → Power 전환 시 기대 수익 : 2,266원 (1회)</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ===== Page 25 — 대시보드 구축 계획 (ref 25.png) ===== -->
+  <section class="slide slide-doc">
+    <h2 class="doc-title animate delay-1 editable" data-edit-id="e-25-0" style="">대시보드 구축 계획</h2><button type="button" class="title-add-list animate">+ 새 항목 추가</button>
+    <div class="attn-center">
+    <table class="plan-table animate delay-2" style="">
+      <thead>
+        <tr>
+          <th class="editable" data-edit-id="e-25-h0"></th>
+          <th class="editable" data-edit-id="e-25-h1">v 0.8 <small>(전체 공유용)</small></th>
+          <th class="editable" data-edit-id="e-25-h2">v 0.9 <small>(전체 공유용)</small></th>
+          <th class="editable" data-edit-id="e-25-h3">v 1.0 <small>(전체 공유 + 내부 확인용)</small></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="row-schedule">
+          <td class="label editable" data-edit-id="e-25-r1l">일정</td>
+          <td class="editable" data-edit-id="e-25-r1a">5월 목표</td><td class="editable" data-edit-id="e-25-r1b">7월 목표</td><td class="editable" data-edit-id="e-25-r1c">9월 목표</td>
+        </tr>
+        <tr>
+          <td class="label editable" data-edit-id="e-25-r2l">구축 형태</td>
+          <td class="editable" data-edit-id="e-25-r2a">HTML 파일<span class="sub">(데이터 수동 업데이트)</span></td>
+          <td class="editable" data-edit-id="e-25-r2b">좌동</td>
+          <td class="editable" data-edit-id="e-25-r2c">데이터 자동 업데이트 목표<span class="sub">전체용 : MIS(업무망) Vs. SALAD(관리망)<br>내부용 : SALAD(관리망)</span></td>
+        </tr>
+        <tr class="row-hl">
+          <td class="label editable" data-edit-id="e-25-r3l">주요 정보</td>
+          <td class="editable" data-edit-id="e-25-r3a"><span>주 단위</span><ul><li>세그별 이용자 수</li><li>Rentention 트랙 이탈 조기 경보</li></ul></td>
+          <td class="editable" data-edit-id="e-25-r3b"><span>(+) 월 단위</span><ul><li>세그별 전환율</li><li>비즈니스 기여도</li></ul></td>
+          <td class="editable" data-edit-id="e-25-r3c">(+) 월 단위<span class="sub">내부 확인용 : 세이버 매트릭스<br>(FAI, RDI, VRI)</span></td>
+        </tr>
+        <tr>
+          <td class="label editable" data-edit-id="e-25-r4l">장점</td>
+          <td class="editable" data-edit-id="e-25-r4a">데이터 파트 운영 리소스 최소화<span class="sub">빠르게 데이터 시각화 가능</span></td>
+          <td class="editable" data-edit-id="e-25-r4b">좌동</td>
+          <td class="editable" data-edit-id="e-25-r4c">UXI 운영 리소스 최소화<span class="sub">대시보드 접근성 향상</span></td>
+        </tr>
+        <tr>
+          <td class="label editable" data-edit-id="e-25-r5l">단점</td>
+          <td class="editable" data-edit-id="e-25-r5a">매주 수동으로 데이터 업데이트 및<span class="sub">본부 내 수기 전파 필요</span></td>
+          <td class="editable" data-edit-id="e-25-r5b">좌동</td>
+          <td class="editable" data-edit-id="e-25-r5c">대시보드 구축 환경에 따른 개발 리소스 상이<span class="sub">데이터 파트의 운영/관리 리소스 커짐</span></td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <!-- ===== Page 26 — EOD ===== -->
+  <section class="slide slide-eod">
+    <div class="eod-text animate editable" data-edit-id="e-26-0" style="">EOD</div>
+  </section>
+
+</div>
+
+<!-- SLIDE NAV -->
+<nav class="slide-nav" aria-label="슬라이드 네비게이션">
+  <button onclick="prevSlide()" aria-label="이전 슬라이드">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"></path></svg>
+  </button>
+  <span class="slide-counter" id="slideCounter" aria-live="polite"><input class="slide-current" id="slideCurrent" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" value="1" title="페이지 번호 입력 후 Enter" /><span class="slide-divider">/</span><span class="slide-total" id="slideTotal">27</span></span>
+  <button onclick="nextSlide()" aria-label="다음 슬라이드">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"></path></svg>
+  </button>
+</nav>
+
+<!-- OVERVIEW PANEL -->
+<div id="overview-panel" class="">
+  <div id="overview-controls">
+    <button data-ctrl="0" onclick="toggleFullscreen();"><span id="fsIcon">⛶</span><span id="fsLabel">전체 화면</span></button>
+    <button data-ctrl="1" onclick="cycleTheme();"><span id="themeIcon">☀️</span><span id="themeLabel">Light</span></button>
+    <div class="font-row" data-ctrl="2">
+      <button onclick="adjustFontScale(-0.1)">A−</button>
+      <span id="fontScaleLabel">100%</span>
+      <button onclick="adjustFontScale(0.1)">A+</button>
+    </div>
+    <div class="font-row" data-ctrl="3">
+      <button onclick="cycleCanvasWidth(-1)">‹</button>
+      <span id="canvasWidthLabel">1920</span>
+      <button onclick="cycleCanvasWidth(1)">›</button>
+    </div>
+    <button data-ctrl="4" onclick="exportHTML()"><span>📥</span><span>HTML 내보내기</span></button>
+  </div>
+  <div id="overview-track"></div>
+</div>
+
+<script>
+  // ===== Slides core =====
+  var slides = Array.from(document.querySelectorAll('.slide'));
+  var total = slides.length;
+  var currentSlide = 0;
+  var counter = document.getElementById('slideCounter');
+  var slideCurrentEl = document.getElementById('slideCurrent');
+  var slideTotalEl = document.getElementById('slideTotal');
+  var progress = document.getElementById('progressBar');
+
+  function showSlide(idx) {
+    idx = Math.max(0, Math.min(total - 1, idx));
+    slides.forEach(function (s, i) {
+      s.classList.remove('active', 'exit-left');
+      if (i === idx) s.classList.add('active');
+      else if (i < idx) s.classList.add('exit-left');
+    });
+    currentSlide = idx;
+    if (slideCurrentEl && document.activeElement !== slideCurrentEl) {
+      slideCurrentEl.value = String(idx + 1);
+    }
+    if (slideTotalEl) slideTotalEl.textContent = total;
+    progress.style.width = ((idx + 1) / total * 100) + '%';
+    var eyeSvg = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.7;vertical-align:middle;margin-right:4px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+    document.querySelectorAll('#overview-track .overview-item').forEach(function (el, i) {
+      el.classList.toggle('overview-current', i === idx);
+      var n = el.querySelector('.overview-num');
+      if (n) n.innerHTML = (i === idx ? eyeSvg : '') + (i + 1);
+    });
+    // animate 재트리거
+    var animEls = slides[idx].querySelectorAll('.animate');
+    animEls.forEach(function (el) { el.style.animation = 'none'; void el.offsetHeight; el.style.animation = ''; });
+  }
+  function nextSlide() { if (currentSlide < total - 1) showSlide(currentSlide + 1); }
+  function prevSlide() { if (currentSlide > 0) showSlide(currentSlide - 1); }
+  window.nextSlide = nextSlide; window.prevSlide = prevSlide; window.showSlide = showSlide;
+
+  // ===== Theme =====
+  var savedTheme = localStorage.getItem('dashboard-theme') || 'light';
+  function applyTheme(t) {
+    var root = document.documentElement;
+    root.classList.remove('theme-dark', 'theme-light');
+    root.classList.add('theme-' + t);
+    document.getElementById('themeIcon').textContent = t === 'dark' ? '🌙' : '☀️';
+    document.getElementById('themeLabel').textContent = t === 'dark' ? 'Dark' : 'Light';
+    localStorage.setItem('dashboard-theme', t);
+  }
+  var themeFadeTimer = null;
+  function cycleTheme() {
+    var next = document.documentElement.classList.contains('theme-dark') ? 'light' : 'dark';
+    document.documentElement.classList.add('theme-transitioning');
+    applyTheme(next);
+    if (themeFadeTimer) clearTimeout(themeFadeTimer);
+    themeFadeTimer = setTimeout(function () {
+      document.documentElement.classList.remove('theme-transitioning');
+    }, 450);
+  }
+  applyTheme(savedTheme);
+  window.cycleTheme = cycleTheme;
+
+  // ===== Font scale =====
+  var FONT_SCALE_MANUAL_KEY = 'dashboard-font-scale-manual';
+  var currentFontScale = parseFloat(localStorage.getItem('dashboard-font-scale') || '1');
+  function applyFontScale(s) {
+    currentFontScale = s;
+    document.documentElement.style.setProperty('--font-scale', currentFontScale);
+    var label = document.getElementById('fontScaleLabel');
+    if (label) label.textContent = Math.round(currentFontScale * 100) + '%';
+  }
+  // ===== Canvas width (1920~2080 가변) =====
+  var CANVAS_WIDTHS = [1920, 1960, 2000, 2040, 2080];
+  var CANVAS_WIDTH_KEY = 'dashboard-canvas-width';
+  var currentCanvasWidth = parseInt(localStorage.getItem(CANVAS_WIDTH_KEY) || '2000', 10);
+  if (CANVAS_WIDTHS.indexOf(currentCanvasWidth) < 0) currentCanvasWidth = 2000;
+  function applyCanvasWidth(w) {
+    currentCanvasWidth = w;
+    document.documentElement.style.setProperty('--canvas-w', w + 'px');
+    var lbl = document.getElementById('canvasWidthLabel');
+    if (lbl) lbl.textContent = String(w);
+    if (typeof scaleSlides === 'function') scaleSlides();
+  }
+  function cycleCanvasWidth(direction) {
+    var idx = CANVAS_WIDTHS.indexOf(currentCanvasWidth);
+    if (idx < 0) idx = 0;
+    var nextIdx = idx + direction;
+    if (nextIdx < 0 || nextIdx >= CANVAS_WIDTHS.length) return;
+    applyCanvasWidth(CANVAS_WIDTHS[nextIdx]);
+    localStorage.setItem(CANVAS_WIDTH_KEY, String(currentCanvasWidth));
+  }
+  window.cycleCanvasWidth = cycleCanvasWidth;
+  applyCanvasWidth(currentCanvasWidth);
+
+  function autoFitFontScale() {
+    var fitH = window.innerHeight / 1080;
+    var fitW = window.innerWidth / currentCanvasWidth;
+    var minFit = Math.min(fitH, fitW);
+    // Map fit ratio (1.0 → 1.0, 0.5 → 0.85, 0.3 → 0.7)
+    var auto = 0.7 + Math.max(0, (minFit - 0.3) * 0.43);
+    auto = Math.min(1.0, Math.max(0.7, auto));
+    auto = Math.round(auto * 10) / 10;
+    if (auto !== currentFontScale) applyFontScale(auto);
+  }
+  applyFontScale(currentFontScale);
+  function adjustFontScale(delta) {
+    var next = Math.max(0.7, Math.min(1.5, +(currentFontScale + delta).toFixed(1)));
+    applyFontScale(next);
+    localStorage.setItem('dashboard-font-scale', currentFontScale);
+    localStorage.setItem(FONT_SCALE_MANUAL_KEY, '1');
+  }
+  window.adjustFontScale = adjustFontScale;
+
+  // ===== Fullscreen =====
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+      document.getElementById('fsIcon').textContent = '✕';
+      document.getElementById('fsLabel').textContent = '전체 화면 종료';
+    } else {
+      document.exitFullscreen();
+    }
+  }
+  document.addEventListener('fullscreenchange', function () {
+    if (!document.fullscreenElement) {
+      document.getElementById('fsIcon').textContent = '⛶';
+      document.getElementById('fsLabel').textContent = '전체 화면';
+    }
+    scaleSlides();
+  });
+  window.toggleFullscreen = toggleFullscreen;
+
+  // ===== Overview panel =====
+  var OVERVIEW_H = 220;
+  var overviewOpen = false;
+  var overviewFocus = 0;
+  var overviewSection = 'thumbs';
+  var overviewControlFocus = 0;
+
+  function buildOverview() {
+    var track = document.getElementById('overview-track');
+    track.innerHTML = '';
+    slides.forEach(function (slide, i) {
+      var item = document.createElement('div');
+      item.className = 'overview-item' + (i === currentSlide ? ' overview-current' : '') + (i === overviewFocus ? ' overview-focus' : '');
+      item.dataset.index = i;
+
+      var thumb = document.createElement('div');
+      thumb.className = 'overview-thumb';
+      var clone = slide.cloneNode(true);
+      clone.classList.add('overview-clone');
+      clone.classList.add('active'); // ensure visible in clone
+      clone.style.opacity = '1';
+      clone.style.transform = 'scale(0.08824)';
+      thumb.appendChild(clone);
+
+      var num = document.createElement('div');
+      num.className = 'overview-num';
+      var eye = (i === currentSlide)
+        ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.7;vertical-align:middle;margin-right:4px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'
+        : '';
+      num.innerHTML = eye + (i + 1);
+
+      item.appendChild(thumb);
+      item.appendChild(num);
+      item.addEventListener('click', function () {
+        var idx = parseInt(this.dataset.index, 10);
+        closeOverview();
+        setTimeout(function () { showSlide(idx); }, 50);
+      });
+      track.appendChild(item);
+    });
+    scrollOverviewToFocus();
+  }
+  function scrollOverviewToFocus() {
+    var track = document.getElementById('overview-track');
+    var items = track.querySelectorAll('.overview-item');
+    if (items[overviewFocus]) {
+      var el = items[overviewFocus];
+      track.scrollLeft = el.offsetLeft - track.offsetWidth / 2 + el.offsetWidth / 2;
+    }
+  }
+  function updateOverviewFocus(idx) {
+    overviewFocus = idx;
+    var items = document.querySelectorAll('#overview-track .overview-item');
+    items.forEach(function (el, i) { el.classList.toggle('overview-focus', i === idx); });
+    scrollOverviewToFocus();
+  }
+  function updateControlFocus(i) {
+    overviewControlFocus = i;
+    document.querySelectorAll('#overview-controls [data-ctrl]').forEach(function (el) {
+      el.classList.toggle('control-focus', parseInt(el.dataset.ctrl, 10) === i);
+    });
+  }
+  function setOverviewSection(s) {
+    overviewSection = s;
+    if (s === 'controls') {
+      updateControlFocus(overviewControlFocus || 0);
+      document.querySelectorAll('#overview-track .overview-item').forEach(function (el) { el.classList.remove('overview-focus'); });
+    } else {
+      document.querySelectorAll('#overview-controls [data-ctrl]').forEach(function (el) { el.classList.remove('control-focus'); });
+      updateOverviewFocus(overviewFocus);
+    }
+  }
+  function openOverview() {
+    overviewOpen = true;
+    overviewFocus = currentSlide;
+    overviewSection = 'thumbs';
+    buildOverview();
+    document.getElementById('overview-panel').classList.add('open');
+    document.body.classList.add('overview-active');
+    scaleSlides();
+  }
+  function closeOverview() {
+    overviewOpen = false;
+    document.getElementById('overview-panel').classList.remove('open');
+    document.body.classList.remove('overview-active');
+    document.querySelectorAll('#overview-controls [data-ctrl]').forEach(function (el) { el.classList.remove('control-focus'); });
+    scaleSlides();
+  }
+  window.openOverview = openOverview; window.closeOverview = closeOverview;
+
+  // ===== Scale slides to viewport =====
+  function scaleSlides() {
+    var wrapper = document.getElementById('slidesWrapper');
+    var availH = window.innerHeight - (overviewOpen ? OVERVIEW_H : 0);
+    var navReserve = 72;
+    var availForSlide = availH - navReserve;
+    var scale = Math.min(window.innerWidth / currentCanvasWidth, availForSlide / 1080);
+    // Wrapper height stretches to fill available viewport area when viewport is taller than slide aspect
+    var wrapperH = Math.max(1080, availForSlide / scale);
+    wrapper.style.height = wrapperH + 'px';
+    var offsetX = (window.innerWidth - currentCanvasWidth * scale) / 2;
+    var offsetY = 0;
+    wrapper.style.transform = 'translate(' + offsetX + 'px, ' + offsetY + 'px) scale(' + scale + ')';
+  }
+  window.addEventListener('resize', scaleSlides);
+
+  // ===== Inline editing (persists via localStorage) =====
+  var EDIT_KEY = 'dashboard-edits-v3';
+  var SHARED_SIZES_KEY = 'dashboard-shared-sizes-v1';
+  var SHARED_DEFAULTS = { docTitle: 48, docBullets: 22 };
+  var sharedSizes = Object.assign({}, SHARED_DEFAULTS);
+
+  function applySharedSizes() {
+    var r = document.documentElement.style;
+    r.setProperty('--doc-title-size', sharedSizes.docTitle + 'px');
+    r.setProperty('--doc-bullets-size', sharedSizes.docBullets + 'px');
+  }
+  function loadSharedSizes() {
+    try {
+      var s = JSON.parse(localStorage.getItem(SHARED_SIZES_KEY) || '{}');
+      if (typeof s.docTitle === 'number') sharedSizes.docTitle = s.docTitle;
+      if (typeof s.docBullets === 'number') sharedSizes.docBullets = s.docBullets;
+    } catch (_) {}
+    applySharedSizes();
+  }
+  function saveSharedSizes() {
+    try { localStorage.setItem(SHARED_SIZES_KEY, JSON.stringify(sharedSizes)); } catch (_) {}
+  }
+  function isSharedSizeElement(el) {
+    if (!el || !el.classList) return null;
+    if (el.classList.contains('doc-title')) return 'docTitle';
+    if (el.parentElement && el.parentElement.classList.contains('doc-bullets')) return 'docBullets';
+    return null;
+  }
+  loadSharedSizes();
+
+  // ===== Bullets structural store (li add/remove) =====
+  var BULLETS_KEY = 'dashboard-bullets-v1';
+  function bulletsKeyFor(idx) { return 'b-' + idx; }
+  function loadBulletsStore() {
+    try { return JSON.parse(localStorage.getItem(BULLETS_KEY) || '{}'); } catch (_) { return {}; }
+  }
+  function writeBulletsStore(s) {
+    try { localStorage.setItem(BULLETS_KEY, JSON.stringify(s)); } catch (_) {}
+  }
+  function saveBulletsForSlide(idx) {
+    var slide = slides[idx];
+    if (!slide) return;
+    var ul = slide.querySelector('.doc-bullets');
+    var store = loadBulletsStore();
+    var key = bulletsKeyFor(idx);
+    if (ul && ul.children.length > 0) {
+      var clone = ul.cloneNode(true);
+      clone.querySelectorAll('.bullet-controls').forEach(function (n) { n.remove(); });
+      clone.querySelectorAll('[data-edit-id]').forEach(function (n) { n.removeAttribute('data-edit-id'); });
+      clone.querySelectorAll('.editable').forEach(function (n) { n.classList.remove('editable'); });
+      clone.querySelectorAll('[contenteditable]').forEach(function (n) { n.removeAttribute('contenteditable'); });
+      store[key] = clone.innerHTML;
+    } else {
+      delete store[key];
+    }
+    writeBulletsStore(store);
+  }
+  function ensureUlForSlide(idx) {
+    var slide = slides[idx];
+    var ul = slide.querySelector('.doc-bullets');
+    if (ul) return ul;
+    var title = slide.querySelector('.doc-title');
+    if (!title) return null;
+    ul = document.createElement('ul');
+    ul.className = 'doc-bullets animate delay-2';
+    // Suppress immediate fadeInUp on creation; slide-transition retrigger will clear this
+    ul.style.animation = 'none';
+    ul.dataset.bulletsId = bulletsKeyFor(idx);
+    title.insertAdjacentElement('afterend', ul);
+    return ul;
+  }
+  function makeNewLi(text) {
+    var li = document.createElement('li');
+    li.textContent = text || '새 항목 추가';
+    return li;
+  }
+  function animateLiIn(li) {
+    // 클릭 즉시 전체 등장 (li 자체엔 entering 애니메이션 없음)
+    // 아래 콘텐츠 줄어드는 트랜지션은 smoothShrinkLower()로 별도 처리
+  }
+  // ul의 margin-bottom을 음수로 잠가서 후속 형제들이 OLD 위치에 머물게 한 뒤
+  // 자연 값으로 트랜지션 → 모든 후속 형제가 동기로 부드럽게 밀려남.
+  // 캡처 시: 후속 형제 중 첫 번째의 top을 기록.
+  // 적용 시: delta = newTop - oldTop, ul.marginBottom을 (orig - delta)에서 orig로 트랜지션.
+  function captureShrinkLower(slide) {
+    if (!slide) return;
+    var container = slide.querySelector('.slide-intro-body') || slide;
+    var children = Array.prototype.slice.call(container.children);
+    var anchorIdx = -1;
+    children.forEach(function (c, i) {
+      if (c.classList && c.classList.contains('doc-bullets')) anchorIdx = i;
+    });
+    if (anchorIdx === -1) {
+      children.forEach(function (c, i) {
+        if (c.classList && c.classList.contains('doc-title')) anchorIdx = i;
+      });
+    }
+    if (anchorIdx === -1) return;
+    var siblings = [];
+    for (var i = anchorIdx + 1; i < children.length; i++) {
+      var c = children[i];
+      var entry = { el: c, oldTop: c.getBoundingClientRect().top };
+      // doc-image-wrap의 경우 내부 img 높이도 캡처 (scale 트랜지션용)
+      if (c.classList && c.classList.contains('doc-image-wrap')) {
+        var img = c.querySelector('img');
+        if (img) entry.oldImgH = img.getBoundingClientRect().height;
+      }
+      siblings.push(entry);
+    }
+    slide._flipSiblings = siblings;
+  }
+  function smoothShrinkLower(slide) {
+    if (!slide) return;
+    var siblings = slide._flipSiblings;
+    delete slide._flipSiblings;
+    if (!siblings || !siblings.length) return;
+    siblings.forEach(function (s) {
+      // doc-image-wrap → 안의 img를 scale(bottom origin)으로 트랜지션
+      // → 이미지 크기와 top 위치가 동시에 자연스럽게 변화 (bottom은 고정)
+      if (s.el.classList && s.el.classList.contains('doc-image-wrap') && s.oldImgH) {
+        var img = s.el.querySelector('img');
+        if (img) {
+          var newImgH = img.getBoundingClientRect().height;
+          if (newImgH > 0 && Math.abs(s.oldImgH - newImgH) > 1) {
+            var scale = s.oldImgH / newImgH;
+            img.animate(
+              [
+                { transform: 'scale(' + scale + ')', transformOrigin: 'center bottom' },
+                { transform: 'scale(1)', transformOrigin: 'center bottom' }
+              ],
+              {
+                duration: 400,
+                easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+                fill: 'none'
+              }
+            );
+            return;
+          }
+        }
+      }
+      // 그 외 sibling은 translateY로 위치만 슬라이드
+      var newTop = s.el.getBoundingClientRect().top;
+      var dy = s.oldTop - newTop;
+      if (Math.abs(dy) < 1) return;
+      s.el.animate(
+        [
+          { transform: 'translateY(' + dy + 'px)' },
+          { transform: 'translateY(0)' }
+        ],
+        {
+          duration: 400,
+          easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+          fill: 'none'
+        }
+      );
+    });
+  }
+  function animateLiOut(li, done) {
+    li.classList.remove('li-entering', 'li-entered');
+    var h = li.getBoundingClientRect().height || li.scrollHeight || 40;
+    li.style.setProperty('--target-h', h + 'px');
+    li.classList.add('li-leaving');
+
+    // 마지막 li면 ul도 같이 collapse 트랜지션
+    // (ul.margin + ul.remove() 시점의 title-add-list margin-top snap까지 한꺼번에 처리)
+    var ul = li.parentElement;
+    var isLastInUl = ul && ul.classList.contains('doc-bullets') && ul.children.length === 1;
+    if (isLastInUl) {
+      var ulRect = ul.getBoundingClientRect();
+      var ulCs = getComputedStyle(ul);
+      var ulH = ulRect.height;
+      var ulMt = parseFloat(ulCs.marginTop) || 0;
+      var ulMb = parseFloat(ulCs.marginBottom) || 0;
+      ul.style.overflow = 'hidden';
+      ul.style.maxHeight = ulH + 'px';
+      // !important rule(.doc-bullets:has(+ .title-add-list))을 이기기 위해 important 우선순위로
+      ul.style.setProperty('margin-top', ulMt + 'px', 'important');
+      ul.style.setProperty('margin-bottom', ulMb + 'px', 'important');
+      ul.style.transition = 'max-height 0.28s cubic-bezier(0.22, 1, 0.36, 1), margin-top 0.28s cubic-bezier(0.22, 1, 0.36, 1), margin-bottom 0.28s cubic-bezier(0.22, 1, 0.36, 1)';
+
+      // ul 제거 후 title-add-list의 margin-top이 0 → 16px로 snap되는 것 방지: 미리 16px로 트랜지션
+      var nextSib = ul.nextElementSibling;
+      var addListBtn = (nextSib && nextSib.classList && nextSib.classList.contains('title-add-list')) ? nextSib : null;
+      if (addListBtn) {
+        addListBtn.style.marginTop = '0px';
+        addListBtn.style.transition = 'margin-top 0.28s cubic-bezier(0.22, 1, 0.36, 1)';
+      }
+
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          ul.style.maxHeight = '0px';
+          ul.style.setProperty('margin-top', '0px', 'important');
+          ul.style.setProperty('margin-bottom', '0px', 'important');
+          if (addListBtn) addListBtn.style.marginTop = '16px';
+        });
+      });
+
+      // 트랜지션 완료 후 inline 스타일 정리 (ul은 어차피 remove 되지만, addListBtn은 남으므로)
+      setTimeout(function () {
+        if (addListBtn) {
+          addListBtn.style.transition = '';
+          addListBtn.style.marginTop = '';
+        }
+      }, 320);
+    }
+
+    var finished = false;
+    function finish() {
+      if (finished) return;
+      finished = true;
+      li.removeEventListener('transitionend', onEnd);
+      if (typeof done === 'function') done();
+    }
+    function onEnd(ev) {
+      if (ev.target !== li) return;
+      if (ev.propertyName !== 'max-height') return;
+      finish();
+    }
+    li.addEventListener('transitionend', onEnd);
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        li.classList.add('li-left');
+      });
+    });
+    // fallback in case transitionend doesn't fire
+    setTimeout(finish, 500);
+  }
+  function sanitizeStoredBulletsHTML(html) {
+    if (typeof html !== 'string' || !html) return '';
+    var tmp = document.createElement('ul');
+    tmp.innerHTML = html;
+    Array.prototype.slice.call(tmp.children).forEach(function (li) {
+      if (li.tagName !== 'LI') { li.remove(); return; }
+      var clean = (li.textContent || '').replace(/[​\s]/g, '');
+      if (!clean || clean === '새항목추가') li.remove();
+    });
+    return tmp.innerHTML;
+  }
+  function restoreBullets() {
+    var store = loadBulletsStore();
+    var storeDirty = false;
+    slides.forEach(function (slide, idx) {
+      var key = bulletsKeyFor(idx);
+      var stored = store[key];
+      var ul = slide.querySelector('.doc-bullets');
+      if (stored != null) {
+        var cleaned = sanitizeStoredBulletsHTML(stored);
+        if (cleaned !== stored) {
+          if (cleaned) store[key] = cleaned;
+          else delete store[key];
+          storeDirty = true;
+          stored = cleaned;
+        }
+        if (!stored) return;
+        if (!ul) {
+          var title = slide.querySelector('.doc-title');
+          if (!title) return;
+          ul = document.createElement('ul');
+          ul.className = 'doc-bullets animate delay-2';
+          title.insertAdjacentElement('afterend', ul);
+        }
+        ul.innerHTML = stored;
+      }
+      if (ul) ul.dataset.bulletsId = key;
+    });
+    if (storeDirty) writeBulletsStore(store);
+  }
+
+  function buildBulletControls(li) {
+    if (li.querySelector(':scope > .bullet-controls')) return;
+    var wrap = document.createElement('span');
+    wrap.className = 'bullet-controls';
+    wrap.contentEditable = 'false';
+    var minus = document.createElement('button');
+    minus.type = 'button';
+    minus.className = 'btn-bullet btn-minus';
+    minus.textContent = '−';
+    minus.title = '항목 삭제';
+    var plus = document.createElement('button');
+    plus.type = 'button';
+    plus.className = 'btn-bullet btn-plus';
+    plus.textContent = '+';
+    plus.title = '항목 추가';
+    wrap.appendChild(minus);
+    wrap.appendChild(plus);
+    li.appendChild(wrap);
+  }
+  function attachBulletControlsAll() {
+    document.querySelectorAll('#slidesWrapper .doc-bullets > li').forEach(buildBulletControls);
+  }
+  function buildAddListButton(slide) {
+    if (slide.querySelector(':scope > .title-add-list, :scope .doc-title + .title-add-list')) return;
+    var title = slide.querySelector('.doc-title');
+    if (!title) return;
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'title-add-list animate';
+    btn.textContent = '+ 새 항목 추가';
+    title.insertAdjacentElement('afterend', btn);
+  }
+  function refreshAddListButtons() {
+    slides.forEach(function (slide) {
+      var existing = slide.querySelector('.title-add-list');
+      var ul = slide.querySelector('.doc-bullets');
+      var title = slide.querySelector('.doc-title');
+      if (!title) { if (existing) existing.remove(); return; }
+      if (!existing) buildAddListButton(slide);
+      var btn = slide.querySelector('.title-add-list');
+      if (!btn) return;
+      // 위치 보정: ul이 있으면 ul 뒤, 없으면 title 뒤
+      var anchor = ul || title;
+      if (btn.previousElementSibling !== anchor) {
+        anchor.insertAdjacentElement('afterend', btn);
+      }
+    });
+  }
+  function getSlideIdxOf(el) {
+    var slide = el.closest && el.closest('.slide');
+    return slide ? slides.indexOf(slide) : -1;
+  }
+  function getLiTextOnly(li) {
+    // .bullet-controls 안의 "−+" 텍스트는 제외하고 li의 실제 사용자 텍스트만
+    var t = '';
+    Array.prototype.slice.call(li.childNodes).forEach(function (n) {
+      if (n.nodeType === 3) t += n.textContent;
+      else if (n.nodeType === 1 && !n.classList.contains('bullet-controls')) t += n.textContent;
+    });
+    return t;
+  }
+  function focusForEditing(li) {
+    li.setAttribute('contenteditable', 'plaintext-only');
+    li.classList.add('editable');
+    // Placeholder behavior: if the li's text is the default "새 항목 추가", clear it on focus.
+    var rawText = getLiTextOnly(li).replace(/[​\s]/g, '');
+    if (rawText === '새항목추가') {
+      Array.prototype.slice.call(li.childNodes).forEach(function (n) {
+        if (n.nodeType === Node.TEXT_NODE) li.removeChild(n);
+      });
+      // 비어 있는 li는 커서 앵커가 없어 입력이 안 되므로 zero-width 문자로 앵커 삽입 (controls 앞에)
+      li.insertBefore(document.createTextNode('​'), li.firstChild);
+    }
+    li.focus();
+    setTimeout(function () {
+      var range = document.createRange();
+      var firstText = null;
+      for (var i = 0; i < li.childNodes.length; i++) {
+        var n = li.childNodes[i];
+        if (n.nodeType === 3) { firstText = n; break; }
+        if (n.nodeType === 1 && !n.classList.contains('bullet-controls')) { firstText = n; break; }
+      }
+      if (firstText && firstText.nodeType === 3) {
+        // 텍스트 노드 끝에 캐럿 (zero-width 뒤)
+        range.setStart(firstText, firstText.textContent.length);
+        range.collapse(true);
+      } else if (firstText) {
+        range.selectNodeContents(firstText);
+      } else {
+        range.setStart(li, 0);
+        range.collapse(true);
+      }
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }, 0);
+  }
+
+  // Delegated click handler for bullet ± and title + buttons
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    if (!t || !t.closest) return;
+    var minusBtn = t.closest('.btn-minus');
+    var plusBtn = t.closest('.btn-plus');
+    var addListBtn = t.closest('.title-add-list');
+    if (!minusBtn && !plusBtn && !addListBtn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var currentlyEditing = document.querySelector('#slidesWrapper .editable[contenteditable="plaintext-only"]');
+    if (currentlyEditing) endEdit(currentlyEditing, true);
+    if (minusBtn) {
+      var li = minusBtn.closest('li');
+      if (!li) return;
+      var ul = li.parentElement;
+      var idx = getSlideIdxOf(li);
+      animateLiOut(li, function () {
+        li.remove();
+        if (ul.children.length === 0) ul.remove();
+        saveBulletsForSlide(idx);
+        refreshAddListButtons();
+        if (overviewOpen) buildOverview();
+      });
+    } else if (plusBtn) {
+      var li2 = plusBtn.closest('li');
+      if (!li2) return;
+      var idx2 = getSlideIdxOf(li2);
+      var slide2 = slides[idx2];
+      captureShrinkLower(slide2);
+      var newLi = makeNewLi();
+      animateLiIn(newLi);
+      li2.insertAdjacentElement('afterend', newLi);
+      buildBulletControls(newLi);
+      // Assign edit id (initEditable already ran; assign sequentially)
+      var existing = slide2.querySelectorAll('.editable[data-edit-id]').length;
+      newLi.dataset.editId = 'e-' + idx2 + '-' + existing;
+      saveBulletsForSlide(idx2);
+      refreshAddListButtons();
+      if (overviewOpen) buildOverview();
+      focusForEditing(newLi);
+      smoothShrinkLower(slide2);
+    } else if (addListBtn) {
+      var slide = addListBtn.closest('.slide');
+      var idx3 = slides.indexOf(slide);
+      captureShrinkLower(slide);
+      var ul3 = ensureUlForSlide(idx3);
+      var newLi3 = makeNewLi();
+      animateLiIn(newLi3);
+      ul3.appendChild(newLi3);
+      buildBulletControls(newLi3);
+      var existing3 = slide.querySelectorAll('.editable[data-edit-id]').length;
+      newLi3.dataset.editId = 'e-' + idx3 + '-' + existing3;
+      saveBulletsForSlide(idx3);
+      refreshAddListButtons();
+      if (overviewOpen) buildOverview();
+      focusForEditing(newLi3);
+      smoothShrinkLower(slide);
+    }
+  });
+
+  var origSnapshot = {}; // editId -> { html, fontSize }
+  var preEditSnapshot = null;
+  var INLINE_OK = { BR:1, SPAN:1, B:1, I:1, EM:1, STRONG:1, SMALL:1, SUP:1, SUB:1, A:1, U:1, MARK:1 };
+  // Global undo/redo across saved edits
+  var editHistory = [];
+  var historyIdx = -1;
+  var HISTORY_MAX = 100;
+
+  function isEditableLeaf(el) {
+    if (!el.textContent || !el.textContent.trim()) return false;
+    // Any table cell (td/th) is the single editable. Never treat nested span/small/li as a leaf.
+    if (el.closest && el.closest('table')) {
+      return el.tagName === 'TD' || el.tagName === 'TH';
+    }
+    // Exclude composite containers — edit their inner spans separately instead
+    if (el.classList && (el.classList.contains('formula') || el.classList.contains('formula-mini'))) return false;
+    for (var i = 0; i < el.children.length; i++) {
+      if (!INLINE_OK[el.children[i].tagName]) return false;
+    }
+    return true;
+  }
+
+  function initEditable() {
+    slides.forEach(function (slide, slideIdx) {
+      var els = slide.querySelectorAll('h1,h2,h3,h4,h5,h6,p,li,div,span,td,th,label,small,caption,figcaption,b,i,em,strong');
+      var n = 0;
+      els.forEach(function (el) {
+        if (!isEditableLeaf(el)) return;
+        if (el.closest && el.closest('.overview-clone')) return;
+        var id = 'e-' + slideIdx + '-' + n;
+        el.classList.add('editable');
+        el.dataset.editId = id;
+        origSnapshot[id] = { html: el.innerHTML, fontSize: el.style.fontSize || '' };
+        n++;
+      });
+    });
+    applyStoredEdits();
+    // Table cells are single-field. Strip nested .editable in cells (may resurface via cached innerHTML)
+    // and sync the cleaned HTML back to localStorage so the cache self-heals.
+    (function enforceTableSingleField() {
+      var cells = document.querySelectorAll('table td.editable, table th.editable');
+      if (!cells.length) return;
+      var store = {};
+      try { store = JSON.parse(localStorage.getItem(EDIT_KEY) || '{}'); } catch (_) {}
+      var storeChanged = false;
+      cells.forEach(function (cell) {
+        var nested = cell.querySelectorAll('.editable, [data-edit-id], [contenteditable]');
+        var stripped = false;
+        nested.forEach(function (n) {
+          if (n === cell) return;
+          n.classList.remove('editable');
+          n.removeAttribute('data-edit-id');
+          n.removeAttribute('contenteditable');
+          stripped = true;
+        });
+        if (!stripped) return;
+        var id = cell.getAttribute('data-edit-id');
+        if (id && store[id] && typeof store[id].html === 'string') {
+          store[id].html = cell.innerHTML;
+          storeChanged = true;
+        }
+      });
+      if (storeChanged) localStorage.setItem(EDIT_KEY, JSON.stringify(store));
+    })();
+  }
+
+  function endEdit(el, save) {
+    if (!el || el.getAttribute('contenteditable') !== 'plaintext-only') return;
+    // 빈 li가 자동 정리될 가능성에 대비해, contenteditable 해제(=min-height 룰 소실)
+    // 전에 현재 높이를 미리 캡처. 캡처 후 인라인 height로 고정해서 "min-height 소실 → 즉각 collapse" 틱 방지.
+    var isAutoCleanupCandidate = (el.tagName === 'LI' && el.parentElement && el.parentElement.classList.contains('doc-bullets'));
+    if (isAutoCleanupCandidate) {
+      var lockedH = el.getBoundingClientRect().height;
+      if (lockedH > 0) {
+        el.style.height = lockedH + 'px';
+        el.style.minHeight = lockedH + 'px';
+      }
+    }
+    el.setAttribute('contenteditable', 'false');
+    if (!save && preEditSnapshot && preEditSnapshot.el === el) {
+      el.innerHTML = preEditSnapshot.html;
+      el.style.fontSize = preEditSnapshot.fontSize;
+    } else {
+      saveEdit(el);
+    }
+    if (preEditSnapshot && preEditSnapshot.el === el) {
+      el.style.marginLeft = preEditSnapshot.marginLeft || '';
+      el.style.marginRight = preEditSnapshot.marginRight || '';
+    }
+    preEditSnapshot = null;
+    el.blur();
+    // Auto-cleanup: empty doc-bullets li gets removed (no orphan empty bullets)
+    if (el.tagName === 'LI' && el.parentElement && el.parentElement.classList.contains('doc-bullets')) {
+      var clean = getLiTextOnly(el).replace(/[​\s]/g, '');
+      if (!clean) {
+        var ul = el.parentElement;
+        var slideIdx = getSlideIdxOf(el);
+        animateLiOut(el, function () {
+          el.remove();
+          if (!ul.children.length) ul.remove();
+          if (slideIdx >= 0) saveBulletsForSlide(slideIdx);
+          refreshAddListButtons();
+          if (overviewOpen) buildOverview();
+        });
+        return;
+      } else if (isAutoCleanupCandidate) {
+        // 비어있지 않으면 lock 해제 (정상 li)
+        el.style.height = '';
+        el.style.minHeight = '';
+      }
+    }
+    if (overviewOpen) buildOverview();
+  }
+
+  function saveEdit(el) {
+    var id = el.dataset.editId;
+    if (!id) return;
+    // li inside .doc-bullets is structurally managed by BULLETS_KEY
+    if (el.parentElement && el.parentElement.classList && el.parentElement.classList.contains('doc-bullets')) {
+      var idx = getSlideIdxOf(el);
+      if (idx >= 0) saveBulletsForSlide(idx);
+      return;
+    }
+    var store = {};
+    try { store = JSON.parse(localStorage.getItem(EDIT_KEY) || '{}'); } catch (_) {}
+    var orig = origSnapshot[id] || { html: '', fontSize: '' };
+    var changed = el.innerHTML !== orig.html || (el.style.fontSize && el.style.fontSize !== orig.fontSize);
+    if (changed) {
+      store[id] = { html: el.innerHTML, fontSize: el.style.fontSize || '' };
+    } else {
+      delete store[id];
+    }
+    localStorage.setItem(EDIT_KEY, JSON.stringify(store));
+  }
+
+  function applyStoredEdits() {
+    var store = {};
+    try { store = JSON.parse(localStorage.getItem(EDIT_KEY) || '{}'); } catch (_) {}
+    Object.keys(store).forEach(function (id) {
+      var el = document.querySelector('#slidesWrapper [data-edit-id="' + id + '"]');
+      if (!el) return;
+      // li inside .doc-bullets is restored from BULLETS_KEY; skip EDIT_KEY for those
+      if (el.parentElement && el.parentElement.classList && el.parentElement.classList.contains('doc-bullets')) return;
+      if (store[id].html != null) el.innerHTML = store[id].html;
+      // Shared-managed classes (.doc-title / .doc-bullets li) ignore per-element fontSize
+      if (store[id].fontSize && !isSharedSizeElement(el)) el.style.fontSize = store[id].fontSize;
+    });
+  }
+
+  function resetEdits() {
+    if (!confirm('편집한 내용을 모두 초기화할까요?')) return;
+    localStorage.removeItem(EDIT_KEY);
+    localStorage.removeItem(SHARED_SIZES_KEY);
+    localStorage.removeItem(BULLETS_KEY);
+    localStorage.removeItem(FONT_SCALE_MANUAL_KEY);
+    localStorage.removeItem('dashboard-font-scale');
+    sharedSizes = Object.assign({}, SHARED_DEFAULTS);
+    applySharedSizes();
+    location.reload();
+    return;
+    Object.keys(origSnapshot).forEach(function (id) {
+      var el = document.querySelector('#slidesWrapper [data-edit-id="' + id + '"]');
+      if (!el) return;
+      if (el.getAttribute('contenteditable') === 'plaintext-only') {
+        el.setAttribute('contenteditable', 'false');
+        el.blur();
+      }
+      el.innerHTML = origSnapshot[id].html;
+      el.style.fontSize = origSnapshot[id].fontSize || '';
+    });
+    preEditSnapshot = null;
+    if (overviewOpen) buildOverview();
+  }
+  window.resetEdits = resetEdits;
+
+  // Reset edits on a single slide (1-indexed for user convenience)
+  window.resetSlide = function (n) {
+    var idx = (typeof n === 'number' ? n - 1 : 0);
+    var store = {};
+    try { store = JSON.parse(localStorage.getItem(EDIT_KEY) || '{}'); } catch (_) {}
+    var prefix = 'e-' + idx + '-';
+    Object.keys(store).forEach(function (k) { if (k.indexOf(prefix) === 0) delete store[k]; });
+    localStorage.setItem(EDIT_KEY, JSON.stringify(store));
+    Object.keys(origSnapshot).forEach(function (id) {
+      if (id.indexOf(prefix) !== 0) return;
+      var el = document.querySelector('#slidesWrapper [data-edit-id="' + id + '"]');
+      if (!el) return;
+      el.innerHTML = origSnapshot[id].html;
+      el.style.fontSize = origSnapshot[id].fontSize || '';
+    });
+    console.log('Slide ' + n + ' edits reset.');
+  };
+
+  function exportHTML() {
+    // Commit any in-progress edit
+    var editing = document.querySelector('#slidesWrapper .editable[contenteditable="plaintext-only"]');
+    if (editing) endEdit(editing, true);
+
+    var clone = document.documentElement.cloneNode(true);
+    // Strip transient state
+    clone.querySelectorAll('[contenteditable="true"]').forEach(function (el) {
+      el.removeAttribute('contenteditable');
+    });
+    // Remove navigation transition classes so initial render doesn't flash a non-cover slide
+    clone.querySelectorAll('.slide.active').forEach(function (s) { s.classList.remove('active'); });
+    clone.querySelectorAll('.slide.exit-left').forEach(function (s) { s.classList.remove('exit-left'); });
+    var track = clone.querySelector('#overview-track');
+    if (track) track.innerHTML = '';
+    var panel = clone.querySelector('#overview-panel');
+    if (panel) panel.classList.remove('open');
+
+    var html = '<!DOCTYPE html>\n' + clone.outerHTML;
+    var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'dashboard.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+  window.exportHTML = exportHTML;
+
+  function toggleBold(editEl) {
+    var sel = window.getSelection();
+    if (!sel || !sel.rangeCount || sel.isCollapsed) return;
+    var range = sel.getRangeAt(0);
+    // Find an existing <b>/<strong> ancestor (within the editable element)
+    var node = range.commonAncestorContainer;
+    if (node.nodeType === 3) node = node.parentNode;
+    var boldAncestor = null;
+    while (node && node !== editEl) {
+      if (node.nodeName === 'B' || node.nodeName === 'STRONG') { boldAncestor = node; break; }
+      node = node.parentNode;
+    }
+    if (boldAncestor) {
+      var parent = boldAncestor.parentNode;
+      while (boldAncestor.firstChild) parent.insertBefore(boldAncestor.firstChild, boldAncestor);
+      parent.removeChild(boldAncestor);
+      parent.normalize();
+    } else {
+      var b = document.createElement('b');
+      try { b.appendChild(range.extractContents()); } catch (_) { return; }
+      range.insertNode(b);
+      sel.removeAllRanges();
+      var nr = document.createRange();
+      nr.selectNodeContents(b);
+      sel.addRange(nr);
+    }
+  }
+
+  function adjustElementFontSize(delta) {
+    var el = document.activeElement;
+    if (!el || !el.classList || !el.classList.contains('editable')) return;
+    var sharedKey = isSharedSizeElement(el);
+    if (sharedKey) {
+      sharedSizes[sharedKey] = Math.max(8, sharedSizes[sharedKey] + delta);
+      applySharedSizes();
+      saveSharedSizes();
+      return;
+    }
+    var current = parseFloat(window.getComputedStyle(el).fontSize) || 16;
+    var next = Math.max(8, current + delta);
+    el.style.fontSize = next + 'px';
+  }
+
+  // beforeinput: plaintext-only 모드에서 native가 추가 줄바꿈 삽입하는 것 차단 (keydown preventDefault만으론 불충분)
+  document.addEventListener('beforeinput', function (e) {
+    var ae = document.activeElement;
+    if (!ae || !ae.classList || !ae.classList.contains('editable')) return;
+    if (ae.getAttribute('contenteditable') !== 'plaintext-only') return;
+    if (e.inputType === 'insertParagraph' || e.inputType === 'insertLineBreak') {
+      e.preventDefault();
+      return;
+    }
+    // doc-bullets li가 비어있을 때 추가 backspace가 .bullet-controls 또는 li 자체를 무너뜨리는 것 방지
+    if (e.inputType === 'deleteContentBackward' || e.inputType === 'deleteWordBackward' || e.inputType === 'deleteHardLineBackward' || e.inputType === 'deleteSoftLineBackward') {
+      if (ae.tagName === 'LI' && ae.parentElement && ae.parentElement.classList.contains('doc-bullets')) {
+        var clean = '';
+        for (var i = 0; i < ae.childNodes.length; i++) {
+          var n = ae.childNodes[i];
+          if (n.nodeType === 3) clean += n.textContent;
+          else if (n.nodeType === 1 && !n.classList.contains('bullet-controls')) clean += n.textContent;
+        }
+        if (clean.replace(/[\s​]/g, '') === '') e.preventDefault();
+      }
+    }
+  });
+
+  // plan-table 셀 편집 중 키 처리: Enter=새 li, Shift+Enter=br, "-"=현재 위치를 bullet로 변환
+  function placeCaret(node, offset) {
+    try {
+      var r = document.createRange();
+      r.setStart(node, offset);
+      r.collapse(true);
+      var s = window.getSelection();
+      s.removeAllRanges();
+      s.addRange(r);
+    } catch (_) {}
+  }
+  function findAncestor(node, tag, stopAt) {
+    var cur = node;
+    if (cur && cur.nodeType === 3) cur = cur.parentNode;
+    while (cur && cur !== stopAt) {
+      if (cur.tagName === tag) return cur;
+      cur = cur.parentNode;
+    }
+    return null;
+  }
+  function isCaretAtLineStart(range, cell) {
+    // cell 시작부터 커서까지의 텍스트를 만들되 <br>, <li>, <ul>은 \n으로 치환
+    var pre = document.createRange();
+    pre.selectNodeContents(cell);
+    try { pre.setEnd(range.startContainer, range.startOffset); } catch (_) { return false; }
+    var text = '';
+    var walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, null);
+    var node;
+    while ((node = walker.nextNode())) {
+      // cursor 이후 노드는 무시
+      try {
+        if (pre.comparePoint(node, 0) > 0) break;
+      } catch (_) { break; }
+      if (node.nodeType === 3) {
+        var endOffset = node.textContent.length;
+        if (node === range.startContainer) endOffset = range.startOffset;
+        text += node.textContent.substring(0, endOffset);
+      } else if (node.tagName === 'BR' || node.tagName === 'LI' || node.tagName === 'UL') {
+        text += '\n';
+      }
+    }
+    var lastLine = text.split('\n').pop();
+    return lastLine.replace(/[\s​]/g, '') === '';
+  }
+  // Enter 처리: plan-table 셀의 li / doc-bullets li에서 새 bullet 생성 (keydown에서 일관 처리)
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter') return;
+    if (e.isComposing || e.keyCode === 229) return;
+    var ae = document.activeElement;
+    if (!ae || !ae.classList || !ae.classList.contains('editable')) return;
+    if (ae.getAttribute('contenteditable') !== 'plaintext-only') return;
+    var isPT = (ae.tagName === 'TD' || ae.tagName === 'TH') && ae.closest && ae.closest('.plan-table');
+    var isDB = ae.tagName === 'LI' && ae.parentElement && ae.parentElement.classList.contains('doc-bullets');
+    if (!isPT && !isDB) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    if (isDB) {
+      // doc-bullets li: Enter / Shift+Enter 둘 다 차단 (새 항목은 + 버튼으로만 추가)
+      return;
+    }
+    // plan-table 셀
+    var sel = window.getSelection();
+    if (!sel.rangeCount) return;
+    var range = sel.getRangeAt(0);
+    var li = findAncestor(range.startContainer, 'LI', ae);
+    if (e.shiftKey) {
+      range.deleteContents();
+      var brEl = document.createElement('br');
+      range.insertNode(brEl);
+      var anch = document.createTextNode('​');
+      brEl.parentNode.insertBefore(anch, brEl.nextSibling);
+      placeCaret(anch, 1);
+      return;
+    }
+    // li 밖 셀 텍스트에서 Enter는 br 줄바꿈 (bullet 추가는 "- " 로만)
+    if (!li) {
+      range.deleteContents();
+      var brOut = document.createElement('br');
+      range.insertNode(brOut);
+      setTimeout(function () {
+        try {
+          ae.focus();
+          var r = document.createRange();
+          r.setStartAfter(brOut);
+          r.collapse(true);
+          var s = window.getSelection();
+          s.removeAllRanges();
+          s.addRange(r);
+        } catch (_) {}
+      }, 0);
+      return;
+    }
+    // li가 비어있으면 → 리스트 탈출 (li 제거, 커서를 셀 직속 레벨 br 다음으로)
+    var liText = '';
+    Array.prototype.slice.call(li.childNodes).forEach(function (n) {
+      if (n.nodeType === 3) liText += n.textContent;
+      else if (n.nodeType === 1) liText += n.textContent;
+    });
+    if (!liText.replace(/[\s​]/g, '')) {
+      var ulP = li.parentElement;
+      var ulParent = ulP.parentNode;
+      var ulNext = ulP.nextSibling;
+      li.remove();
+      var brExit = document.createElement('br');
+      ulParent.insertBefore(brExit, ulNext);
+      if (!ulP.children.length) ulP.remove();
+      // 동기 캐럿 설정 — 다음 키 입력 전에 위치 확정
+      try {
+        ae.focus();
+        var rSync = document.createRange();
+        rSync.setStartAfter(brExit);
+        rSync.collapse(true);
+        var sSync = window.getSelection();
+        sSync.removeAllRanges();
+        sSync.addRange(rSync);
+      } catch (_) {}
+      // 추가로 setTimeout에서 재확정 (IME 첫 조합 보호)
+      var aeRefExit = ae;
+      setTimeout(function () {
+        try {
+          aeRefExit.focus();
+          var rExit = document.createRange();
+          rExit.setStartAfter(brExit);
+          rExit.collapse(true);
+          var sExit = window.getSelection();
+          sExit.removeAllRanges();
+          sExit.addRange(rExit);
+        } catch (_) {}
+      }, 0);
+      return;
+    }
+    // li 안에서 Enter → 커서 뒤 텍스트만 새 li로 옮김 (텍스트 노드 직접 분할)
+    var newLi = document.createElement('li');
+    if (range.endContainer.nodeType === 3 && findAncestor(range.endContainer, 'LI', ae) === li) {
+      var tn = range.endContainer;
+      var after = tn.textContent.substring(range.endOffset);
+      tn.textContent = tn.textContent.substring(0, range.endOffset);
+      newLi.appendChild(document.createTextNode(after || '​'));
+    } else {
+      newLi.appendChild(document.createTextNode('​'));
+    }
+    li.insertAdjacentElement('afterend', newLi);
+    var fc = newLi.firstChild;
+    setTimeout(function () {
+      try {
+        // 새 li에 끼어든 br 제거 (native Enter 잔존 방지)
+        Array.prototype.slice.call(newLi.querySelectorAll(':scope > br')).forEach(function (b) { b.remove(); });
+        if (!newLi.firstChild) newLi.appendChild(document.createTextNode('​'));
+        ae.focus();
+        var r = document.createRange();
+        var anchor = newLi.firstChild;
+        if (anchor && anchor.nodeType === 3) {
+          var txt = anchor.textContent;
+          if (txt === '​') r.setStart(anchor, 1);
+          else r.setStart(anchor, 0);
+        } else {
+          r.setStart(newLi, 0);
+        }
+        r.collapse(true);
+        var s = window.getSelection();
+        s.removeAllRanges();
+        s.addRange(r);
+      } catch (_) {}
+    }, 0);
+  });
+
+  // plan-table 셀에서 "- " (dash + space)을 새 bullet으로 변환 (Markdown 스타일)
+  document.addEventListener('input', function (e) {
+    var ae = document.activeElement;
+    if (!ae || (ae.tagName !== 'TD' && ae.tagName !== 'TH')) return;
+    if (!ae.closest || !ae.closest('.plan-table')) return;
+    if (ae.getAttribute('contenteditable') !== 'plaintext-only') return;
+    if (e.inputType !== 'insertText' && e.inputType !== 'insertCompositionText') return;
+    var sel = window.getSelection();
+    if (!sel.rangeCount) return;
+    var range = sel.getRangeAt(0);
+    if (findAncestor(range.startContainer, 'LI', ae)) return;
+    var node = range.startContainer;
+    var off = range.startOffset;
+    // startContainer가 element일 때 직전 텍스트 노드로 정규화
+    if (node && node.nodeType !== 3) {
+      var prevChild = off > 0 ? node.childNodes[off - 1] : null;
+      if (prevChild && prevChild.nodeType === 3) {
+        node = prevChild;
+        off = prevChild.textContent.length;
+      } else {
+        return;
+      }
+    }
+    if (!node || node.nodeType !== 3) return;
+    var before = node.textContent.substring(0, off);
+    // '- ' (dash + space) 또는 '-' 단독이 라인 시작에 있을 때 트리거
+    var dashLen;
+    if (/-\s$/.test(before)) dashLen = 2;
+    else if (/-$/.test(before)) dashLen = 1;
+    else return;
+    // 그 '-' 이전이 라인 시작인지 확인
+    var preRange = document.createRange();
+    preRange.selectNodeContents(ae);
+    try { preRange.setEnd(node, off - dashLen); } catch (_) { return; }
+    var preText = '';
+    var walker = document.createTreeWalker(ae, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, null);
+    var n;
+    while ((n = walker.nextNode())) {
+      try { if (preRange.comparePoint(n, 0) > 0) break; } catch (_) { break; }
+      if (n.nodeType === 3) {
+        var endO = n.textContent.length;
+        if (n === preRange.endContainer) endO = preRange.endOffset;
+        preText += n.textContent.substring(0, endO);
+      } else if (n.tagName === 'BR' || n.tagName === 'LI' || n.tagName === 'UL') {
+        preText += '\n';
+      }
+    }
+    var lastLine = preText.split('\n').pop();
+    if (lastLine.replace(/[\s​]/g, '') !== '') return;
+    // dashLen 만큼 ('- ' 또는 '-') 제거
+    var newText = node.textContent.substring(0, off - dashLen) + node.textContent.substring(off);
+    node.textContent = newText;
+    // 새 li 삽입: 셀 직속 anchor 앞에
+    var fresh = document.createElement('li');
+    fresh.appendChild(document.createTextNode('​'));
+    var ul = document.createElement('ul');
+    ul.appendChild(fresh);
+    var anchorEl = node;
+    while (anchorEl && anchorEl.parentNode !== ae) anchorEl = anchorEl.parentNode;
+    // 항상 커서 위치에 새 ul 삽입 (직전 ul에 합치지 않음)
+    if (anchorEl) anchorEl.parentNode.insertBefore(ul, anchorEl);
+    else ae.appendChild(ul);
+    placeCaret(fresh.firstChild, 1);
+  });
+
+  // doc-bullets li 편집 중 .bullet-controls가 사라지면 즉시 복원하고 커서를 li 시작 위치로 복구
+  document.addEventListener('input', function (e) {
+    var li = e.target;
+    if (!li || li.tagName !== 'LI') return;
+    if (!li.parentElement || !li.parentElement.classList.contains('doc-bullets')) return;
+    if (!li.querySelector(':scope > .bullet-controls')) {
+      buildBulletControls(li);
+      try {
+        var range = document.createRange();
+        range.setStart(li, 0);
+        range.collapse(true);
+        var sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } catch (_) {}
+    }
+  });
+
+  // Document-level mousedown: handles click-to-edit AND click-outside-to-save
+  document.addEventListener('mousedown', function (e) {
+    if (e.target.closest && e.target.closest('.bullet-controls, .title-add-list')) {
+      e.preventDefault();
+      return;
+    }
+    var clickedEditable = e.target.closest && e.target.closest('.editable');
+    if (clickedEditable && clickedEditable.closest('.overview-clone')) clickedEditable = null;
+    var currentlyEditing = document.querySelector('#slidesWrapper .editable[contenteditable="plaintext-only"]');
+    if (currentlyEditing && currentlyEditing !== clickedEditable) {
+      endEdit(currentlyEditing, true);
+    }
+    if (!clickedEditable) return;
+    if (overviewOpen) return;
+    if (clickedEditable.getAttribute('contenteditable') === 'true') return;
+    preEditSnapshot = {
+      el: clickedEditable,
+      html: clickedEditable.innerHTML,
+      fontSize: clickedEditable.style.fontSize,
+      marginLeft: clickedEditable.style.marginLeft,
+      marginRight: clickedEditable.style.marginRight
+    };
+    // Margin auto only for shrink-on-edit elements (.lede). On full-width flex items, margin auto would force shrink-to-fit.
+    if (clickedEditable.classList.contains('lede')) {
+      var ta = window.getComputedStyle(clickedEditable).textAlign;
+      if (ta === 'center') {
+        clickedEditable.style.marginLeft = 'auto';
+        clickedEditable.style.marginRight = 'auto';
+      } else if (ta === 'right' || ta === 'end') {
+        clickedEditable.style.marginLeft = 'auto';
+        clickedEditable.style.marginRight = '';
+      }
+    }
+    // Placeholder: 새 항목 추가 텍스트는 클릭 시 자동 제거 (doc-bullets li 한정)
+    if (clickedEditable.parentElement && clickedEditable.parentElement.classList.contains('doc-bullets')) {
+      var rawTxt = (clickedEditable.textContent || '').replace(/[​\s]/g, '');
+      if (rawTxt === '새항목추가') {
+        Array.prototype.slice.call(clickedEditable.childNodes).forEach(function (n) {
+          if (n.nodeType === Node.TEXT_NODE) clickedEditable.removeChild(n);
+        });
+      }
+    }
+    clickedEditable.setAttribute('contenteditable', 'plaintext-only');
+    clickedEditable.focus();
+  }, true);
+
+  // ===== Keyboard =====
+  document.addEventListener('keydown', function (e) {
+    var ae = document.activeElement;
+    var ceAttr = ae && ae.getAttribute && ae.getAttribute('contenteditable');
+    var editing = ae && ae.classList && ae.classList.contains('editable') && (ceAttr === 'true' || ceAttr === 'plaintext-only');
+    if (editing) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); endEdit(ae, true); return; }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        var sel = window.getSelection();
+        if (sel && sel.rangeCount) {
+          var range = sel.getRangeAt(0);
+          range.deleteContents();
+          var br = document.createElement('br');
+          range.insertNode(br);
+          range.setStartAfter(br);
+          range.setEndAfter(br);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'ArrowUp') { e.preventDefault(); adjustElementFontSize(2); return; }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'ArrowDown') { e.preventDefault(); adjustElementFontSize(-2); return; }
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'b' || e.key === 'B')) { e.preventDefault(); toggleBold(ae); return; }
+      if (e.key === 'Escape') { e.preventDefault(); endEdit(ae, false); return; }
+      return;
+    }
+    if (!overviewOpen && e.key === 'ArrowUp') { e.preventDefault(); openOverview(); return; }
+    if (overviewOpen) {
+      if (overviewSection === 'controls') {
+        var CTRL_MAX = 4; var onFontRow = overviewControlFocus === 2; var onCanvasRow = overviewControlFocus === 3;
+        if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          if (onFontRow) {
+            if (currentFontScale >= 1.5 - 0.0001) setOverviewSection('thumbs');
+            else adjustFontScale(0.1);
+          } else if (onCanvasRow) {
+            var canvasIdx = CANVAS_WIDTHS.indexOf(currentCanvasWidth);
+            if (canvasIdx >= CANVAS_WIDTHS.length - 1) setOverviewSection('thumbs');
+            else cycleCanvasWidth(1);
+          } else {
+            setOverviewSection('thumbs');
+          }
+        }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); if (onFontRow) adjustFontScale(-0.1); else if (onCanvasRow) cycleCanvasWidth(-1); }
+        else if (e.key === 'ArrowDown') { e.preventDefault(); if (overviewControlFocus < CTRL_MAX) updateControlFocus(overviewControlFocus + 1); else closeOverview(); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); if (overviewControlFocus > 0) updateControlFocus(overviewControlFocus - 1); }
+        else if (e.key === 'Enter') { e.preventDefault(); if (!onFontRow && !onCanvasRow) { var btn = document.querySelector('#overview-controls button[data-ctrl="' + overviewControlFocus + '"]'); if (btn) btn.click(); } }
+        else if (e.key === 'Escape') { e.preventDefault(); closeOverview(); }
+      } else {
+        if (e.key === 'ArrowRight' && e.shiftKey) { e.preventDefault(); overviewFocus = slides.length - 1; updateOverviewFocus(overviewFocus); }
+        else if (e.key === 'ArrowLeft' && e.shiftKey) { e.preventDefault(); overviewFocus = 0; updateOverviewFocus(overviewFocus); }
+        else if (e.key === 'ArrowRight' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); overviewFocus = Math.min(overviewFocus + 1, slides.length - 1); updateOverviewFocus(overviewFocus); showSlide(overviewFocus); }
+        else if (e.key === 'ArrowLeft' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); if (overviewFocus > 0) { overviewFocus--; updateOverviewFocus(overviewFocus); showSlide(overviewFocus); } }
+        else if (e.key === 'ArrowRight') { e.preventDefault(); overviewFocus = Math.min(overviewFocus + 1, slides.length - 1); updateOverviewFocus(overviewFocus); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); if (overviewFocus === 0) setOverviewSection('controls'); else { overviewFocus--; updateOverviewFocus(overviewFocus); } }
+        else if (e.key === 'ArrowDown') { e.preventDefault(); closeOverview(); }
+        else if (e.key === 'Enter') { e.preventDefault(); showSlide(overviewFocus); }
+        else if (e.key === 'Escape') { e.preventDefault(); closeOverview(); }
+      }
+    } else {
+      if (e.key === 'ArrowRight' && e.shiftKey) { e.preventDefault(); showSlide(total - 1); }
+      else if (e.key === 'ArrowLeft' && e.shiftKey) { e.preventDefault(); showSlide(0); }
+      else if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); nextSlide(); }
+      else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); prevSlide(); }
+      if (e.key === 'Home') { e.preventDefault(); showSlide(0); }
+      if (e.key === 'End') { e.preventDefault(); showSlide(total - 1); }
+      if (e.key === 't' || e.key === 'T') { cycleTheme(); }
+    }
+  });
+
+  // ===== Slide counter inline edit (input) =====
+  function commitSlideNumberEdit() {
+    if (!slideCurrentEl) return;
+    var v = parseInt((slideCurrentEl.value || '').replace(/[^0-9]/g, ''), 10);
+    if (!isNaN(v) && v >= 1 && v <= total && v - 1 !== currentSlide) {
+      showSlide(v - 1);
+    } else {
+      slideCurrentEl.value = String(currentSlide + 1);
+    }
+  }
+  if (slideCurrentEl) {
+    slideCurrentEl.setAttribute('maxlength', String(String(total).length));
+    slideCurrentEl.addEventListener('focus', function () {
+      slideCurrentEl.select();
+    });
+    slideCurrentEl.addEventListener('input', function () {
+      var clean = slideCurrentEl.value.replace(/[^0-9]/g, '').replace(/^0+/, '');
+      if (clean.length > 0) {
+        var n = parseInt(clean, 10);
+        if (n > total) clean = String(total);
+      }
+      slideCurrentEl.value = clean;
+    });
+    slideCurrentEl.addEventListener('keydown', function (e) {
+      e.stopPropagation();
+      if (e.key === 'Enter') { e.preventDefault(); commitSlideNumberEdit(); slideCurrentEl.blur(); return; }
+      if (e.key === 'Escape') { e.preventDefault(); slideCurrentEl.value = String(currentSlide + 1); slideCurrentEl.blur(); return; }
+    });
+    slideCurrentEl.addEventListener('blur', function () { commitSlideNumberEdit(); });
+  }
+
+  // ===== Alt(Opt) alone → open overview to controls =====
+  var altDown = false; var altUsed = false;
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Alt') { if (!altDown) { altDown = true; altUsed = false; } }
+    else if (altDown) { altUsed = true; }
+  }, true);
+  document.addEventListener('keyup', function (e) {
+    if (e.key === 'Alt') {
+      if (altDown && !altUsed) {
+        var ae = document.activeElement;
+        var ceAttr = ae && ae.getAttribute && ae.getAttribute('contenteditable');
+        var editing = ae && ae.classList && ae.classList.contains('editable') && (ceAttr === 'true' || ceAttr === 'plaintext-only');
+        if (!editing) {
+          if (!overviewOpen) openOverview();
+          setOverviewSection('controls');
+        }
+      }
+      altDown = false; altUsed = false;
+    }
+  }, true);
+  window.addEventListener('blur', function () { altDown = false; altUsed = false; });
+
+  // ===== Touch =====
+  var touchStartX = 0;
+  document.addEventListener('touchstart', function (e) { touchStartX = e.changedTouches[0].screenX; });
+  document.addEventListener('touchend', function (e) {
+    var diff = touchStartX - e.changedTouches[0].screenX;
+    if (Math.abs(diff) > 50 && !overviewOpen) { diff > 0 ? nextSlide() : prevSlide(); }
+  });
+
+  // ===== Init =====
+  scaleSlides();
+  restoreBullets();
+  initEditable();
+  attachBulletControlsAll();
+  refreshAddListButtons();
+  showSlide(0);
+</script>
+
+
+</body></html>

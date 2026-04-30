@@ -1,0 +1,1486 @@
+<!DOCTYPE html>
+<html lang="ko" class="theme-dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>정밀 타격 대시보드 및 카드앱의 세이버 메트릭스 제안 — UX Insight팀</title>
+<style>
+  @font-face { font-family: 'SFProDisplay'; src: url('../fonts/SF-Pro-Display-Medium.otf') format('opentype'); font-weight: 400; }
+  @font-face { font-family: 'SFProDisplay'; src: url('../fonts/SF-Pro-Display-Medium.otf') format('opentype'); font-weight: 500; }
+  @font-face { font-family: 'SFProDisplay'; src: url('../fonts/SF-Pro-Display-Bold.otf') format('opentype'); font-weight: 600; }
+  @font-face { font-family: 'SFProDisplay'; src: url('../fonts/SF-Pro-Display-Bold.otf') format('opentype'); font-weight: 700; }
+  @font-face { font-family: 'SFProDisplay'; src: url('../fonts/SF-Pro-Display-Bold.otf') format('opentype'); font-weight: 800; }
+  @font-face { font-family: 'YouandiNewKrTitle'; src: url('../fonts/YouandiNewKrTitle-Bold.ttf') format('truetype'); font-weight: 700; }
+</style>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --font-scale: 1; }
+
+  /* ===== Theme tokens ===== */
+  html.theme-dark {
+    --bg: #080808; --surface: #141414; --surface-2: #1a1a1a; --surface-hover: #1a1a1a;
+    --border: rgba(255,255,255,0.10); --border-strong: rgba(255,255,255,0.22);
+    --text: rgba(255,255,255,0.92); --text-secondary: rgba(255,255,255,0.45);
+    --accent: #00D56D; --accent-secondary: #FF0238;
+    --positive: #00D56D; --negative: #FF0238; --warning: #f59e0b;
+    --discuss: #FF0238;
+  }
+  html.theme-light {
+    --bg: #F5F5F3; --surface: #FFFFFF; --surface-2: #FAFAF9; --surface-hover: #EBEBEA;
+    --border: rgba(0,0,0,0.12); --border-strong: rgba(0,0,0,0.28);
+    --text: #0f172a; --text-secondary: #6b7280;
+    --accent: #00b85e; --accent-secondary: #FF0238;
+    --positive: #00b85e; --negative: #FF0238; --warning: #d97706;
+    --discuss: #FF0238;
+  }
+
+  html, body { height: 100%; overflow: hidden; background: var(--bg); }
+  body {
+    font-family: 'SFProDisplay','SF Pro Display',-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;
+    color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased;
+  }
+  h1,h2,h3,h4,h5,h6 { color: var(--text); letter-spacing: -0.02em; line-height: 1.18; }
+  h1, h2 { font-family: 'YouandiNewKrTitle','SFProDisplay',sans-serif; font-weight: 700; }
+  h3 { font-weight: 600; font-family: 'YouandiNewKrTitle','SFProDisplay',sans-serif; }
+
+  /* ===== Animations ===== */
+  @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px);} to { opacity: 1; transform: none;} }
+  .animate { animation: fadeInUp 0.55s ease-out both; }
+  .animate.delay-1{animation-delay:.1s} .animate.delay-2{animation-delay:.2s}
+  .animate.delay-3{animation-delay:.3s} .animate.delay-4{animation-delay:.4s}
+  .animate.delay-5{animation-delay:.5s} .animate.delay-6{animation-delay:.6s}
+  .animate.delay-7{animation-delay:.7s} .animate.delay-8{animation-delay:.8s}
+
+  /* ===== Slides wrapper (2040×1080) ===== */
+  .slides-wrapper {
+    width: 2040px; height: 1080px;
+    position: fixed; top: 0; left: 0; transform-origin: top left;
+    transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden; background: transparent;
+  }
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start;
+    padding: 110px 140px 120px;
+    background: var(--bg);
+    opacity: 0; transform: translateX(60px);
+    transition: opacity 0.45s cubic-bezier(0.4,0,0.2,1), transform 0.45s cubic-bezier(0.4,0,0.2,1);
+    pointer-events: none;
+  }
+  .slide.active { opacity: 1; transform: none; pointer-events: auto; }
+  .slide.exit-left { opacity: 0; transform: translateX(-60px); }
+
+  /* ===== Common slide elements ===== */
+  .slide-tag {
+    font-size: calc(28px * var(--font-scale));
+    font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text-secondary); margin-bottom: 22px;
+    font-family: 'SFProDisplay', sans-serif;
+  }
+  .slide-title {
+    font-size: calc(96px * var(--font-scale));
+    font-weight: 700; line-height: 1.15;
+    font-family: 'YouandiNewKrTitle','SFProDisplay', sans-serif;
+    margin-bottom: 56px; letter-spacing: -0.02em;
+  }
+  .slide-title.sm { font-size: calc(72px * var(--font-scale)); }
+  .slide-sub {
+    font-size: calc(28px * var(--font-scale)); color: var(--text-secondary);
+    line-height: 1.6; max-width: 1500px; font-weight: 500;
+  }
+  .crumb { color: var(--text-secondary); font-weight: 400; }
+  .badge-discuss {
+    display: inline-block; vertical-align: middle;
+    background: var(--discuss); color: #fff;
+    font-family: 'SFProDisplay'; font-weight: 700;
+    font-size: calc(20px * var(--font-scale));
+    padding: 6px 14px; border-radius: 6px;
+    letter-spacing: 0.05em; margin-left: 18px;
+  }
+
+  /* ===== Cover ===== */
+  .slide-cover { align-items: center; justify-content: center; text-align: center; padding: 0 200px; }
+  .cover-meta-top {
+    font-size: calc(22px * var(--font-scale)); font-weight: 700; letter-spacing: 0.15em;
+    color: var(--text-secondary); text-transform: uppercase; margin-bottom: 56px;
+  }
+  .cover-title {
+    font-size: calc(108px * var(--font-scale)); font-weight: 800; line-height: 1.15;
+    font-family: 'YouandiNewKrTitle','SFProDisplay', sans-serif;
+    margin-bottom: 64px; letter-spacing: -0.02em;
+  }
+  .cover-title .accent { color: var(--accent); }
+  .cover-meta {
+    font-size: calc(28px * var(--font-scale));
+    color: var(--text-secondary); letter-spacing: 0.04em;
+  }
+  .cover-meta .sep { display: inline-block; width: 1px; height: 16px; background: var(--text-secondary); margin: 0 18px; vertical-align: middle; opacity: 0.5; }
+
+  /* ===== Closing (EOD) ===== */
+  .slide-eod { align-items: center; justify-content: center; }
+  .eod-text {
+    font-size: calc(180px * var(--font-scale));
+    font-family: 'YouandiNewKrTitle','SFProDisplay', sans-serif;
+    color: var(--text); letter-spacing: 0.05em;
+  }
+
+  /* ===== Card primitive ===== */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 18px; padding: 44px 38px;
+  }
+  .card.padless { padding: 0; overflow: hidden; }
+
+  /* ===== Page 1: 세그 명칭 표 ===== */
+  .seg-table { width: 100%; border-collapse: collapse; }
+  .seg-table th, .seg-table td {
+    border: 1px solid var(--border);
+    padding: 26px 22px; text-align: center;
+    font-size: calc(26px * var(--font-scale)); font-weight: 500;
+    color: var(--text);
+  }
+  .seg-table thead th {
+    background: var(--surface);
+    font-family: 'YouandiNewKrTitle', sans-serif;
+    font-weight: 700; padding: 22px 16px;
+    color: var(--text);
+    font-size: calc(24px * var(--font-scale));
+  }
+  .seg-table .row-label {
+    background: var(--surface);
+    font-family: 'YouandiNewKrTitle', sans-serif; font-weight: 700;
+    text-align: left; padding-left: 30px;
+    width: 24%;
+  }
+  .seg-table .row-label small {
+    display: block; font-family: 'SFProDisplay'; font-weight: 500;
+    font-size: calc(18px * var(--font-scale));
+    color: var(--text-secondary); margin-top: 4px;
+  }
+  .seg-table .group-label {
+    background: var(--surface-2);
+    font-family: 'YouandiNewKrTitle', sans-serif; font-weight: 700;
+    text-align: left; padding-left: 30px;
+    color: var(--text);
+    font-size: calc(22px * var(--font-scale));
+  }
+  .seg-table .group-label.muted { color: var(--text-secondary); }
+  .seg-table tr.muted-row td { color: var(--text-secondary); }
+
+  /* ===== Page 2: 인트로 3카드 ===== */
+  .intro-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; margin-top: 12px; }
+  .intro-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: 48px 40px;
+    display: flex; flex-direction: column; gap: 22px;
+    min-height: 460px;
+  }
+  .intro-card .num {
+    width: 52px; height: 52px; border-radius: 50%;
+    border: 1px solid var(--border-strong);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: 'SFProDisplay'; font-weight: 700;
+    font-size: calc(22px * var(--font-scale)); color: var(--text);
+  }
+  .intro-card h3 {
+    font-size: calc(40px * var(--font-scale)); line-height: 1.3;
+  }
+  .intro-card p {
+    font-size: calc(22px * var(--font-scale));
+    color: var(--text-secondary); line-height: 1.7; font-weight: 500;
+  }
+
+  /* ===== Page 3,4,9,13,16,20,22,23,24: split with screenshot ===== */
+  .split { display: grid; grid-template-columns: 1fr 1.25fr; gap: 60px; flex: 1; min-height: 0; }
+  .split-text { display: flex; flex-direction: column; }
+  .split-text h2 {
+    font-size: calc(72px * var(--font-scale));
+    line-height: 1.2; margin-bottom: 44px;
+  }
+  .split-text ul { list-style: none; display: flex; flex-direction: column; gap: 22px; }
+  .split-text li {
+    font-size: calc(24px * var(--font-scale));
+    line-height: 1.65; color: var(--text);
+    padding-left: 28px; position: relative; font-weight: 500;
+  }
+  .split-text li::before {
+    content: ''; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent);
+    position: absolute; left: 4px; top: 14px;
+  }
+  .split-text li strong { font-weight: 700; color: var(--text); }
+  .split-foot {
+    margin-top: auto; padding-top: 28px;
+    font-size: calc(18px * var(--font-scale));
+    color: var(--text-secondary); font-weight: 500; line-height: 1.6;
+  }
+  .split-img {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 18px; padding: 28px;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .split-img img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; }
+  .split-img.dual { flex-direction: column; gap: 18px; padding: 22px; }
+  .split-img.dual img { width: 100%; height: auto; max-height: 48%; }
+
+  /* ===== Page 5: 야구 vs 카드앱 비교 ===== */
+  .compare-row { display: grid; grid-template-columns: 1fr 100px 1fr; gap: 28px; margin-top: 28px; flex: 1; min-height: 0; }
+  .compare-col {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 22px; padding: 50px 44px;
+    display: flex; flex-direction: column; gap: 22px;
+  }
+  .compare-col.alt {
+    background: var(--text); color: var(--bg);
+    border-color: var(--text);
+  }
+  .compare-col.alt .label, .compare-col.alt .v { color: var(--bg); opacity: 0.65; }
+  .compare-col.alt h3, .compare-col.alt .k { color: var(--bg); }
+  .compare-col.alt .metric-row { border-color: rgba(0,0,0,0.08); }
+  html.theme-dark .compare-col.alt { background: #fff; color: #0a0a0a; border-color: #fff; }
+  html.theme-dark .compare-col.alt h3, html.theme-dark .compare-col.alt .k { color: #0a0a0a; }
+  html.theme-dark .compare-col.alt .label, html.theme-dark .compare-col.alt .v { color: #0a0a0a; opacity: 0.6; }
+  html.theme-dark .compare-col.alt .metric-row { border-color: rgba(0,0,0,0.1); }
+  .compare-col .label {
+    font-family: 'SFProDisplay'; font-weight: 700; letter-spacing: 0.1em;
+    font-size: calc(20px * var(--font-scale));
+    color: var(--text-secondary); text-transform: uppercase;
+  }
+  .compare-col h3 { font-size: calc(56px * var(--font-scale)); margin-bottom: 12px; }
+  .metric-row {
+    display: grid; grid-template-columns: 140px 1fr; gap: 22px;
+    padding: 18px 0; border-top: 1px solid var(--border);
+  }
+  .metric-row:first-of-type { border-top: 0; }
+  .metric-row .k { font-family: 'SFProDisplay'; font-weight: 700; font-size: calc(28px * var(--font-scale)); color: var(--text); }
+  .metric-row .v { font-family: 'SFProDisplay'; font-weight: 500; font-size: calc(22px * var(--font-scale)); color: var(--text-secondary); line-height: 1.55; }
+  .compare-arrow {
+    display: flex; align-items: center; justify-content: center;
+    font-size: calc(48px * var(--font-scale)); color: var(--text-secondary);
+  }
+
+  /* ===== Page 6: 흐름 카드 ===== */
+  .flow-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; margin-top: 36px; flex: 1; min-height: 0; }
+  .flow-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 22px; padding: 48px 40px;
+    display: flex; flex-direction: column; gap: 18px;
+    position: relative;
+  }
+  .flow-card .stage {
+    font-family: 'SFProDisplay'; font-weight: 700;
+    font-size: calc(20px * var(--font-scale));
+    color: var(--text-secondary); letter-spacing: 0.1em;
+  }
+  .flow-card h3 {
+    font-size: calc(72px * var(--font-scale)); line-height: 1; color: var(--accent);
+    letter-spacing: -0.02em;
+  }
+  .flow-card .sub {
+    font-family: 'YouandiNewKrTitle', sans-serif; font-weight: 700;
+    font-size: calc(28px * var(--font-scale)); color: var(--text);
+  }
+  .flow-card .body {
+    font-size: calc(22px * var(--font-scale));
+    line-height: 1.7; color: var(--text-secondary);
+    font-weight: 500; margin-top: 6px;
+  }
+  .flow-card .body strong { color: var(--text); font-weight: 700; }
+  .flow-arrow {
+    margin-top: 30px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px;
+    text-align: center;
+    font-family: 'SFProDisplay'; font-weight: 500;
+    font-size: calc(20px * var(--font-scale));
+    color: var(--text-secondary);
+  }
+
+  /* ===== Page 7,10,14,17: 정의 박스 ===== */
+  .def-wrap { align-items: center; justify-content: center; gap: 56px; padding: 0 200px; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .def-tag {
+    font-family: 'YouandiNewKrTitle', sans-serif;
+    font-size: calc(34px * var(--font-scale));
+    color: var(--text-secondary); letter-spacing: 0.02em;
+  }
+  .def-name {
+    font-family: 'YouandiNewKrTitle', sans-serif;
+    font-size: calc(110px * var(--font-scale));
+    color: var(--text); letter-spacing: -0.02em;
+  }
+  .def-name .accent { color: var(--accent); }
+  .def-formula {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 22px; padding: 48px 80px;
+    font-family: 'SFProDisplay'; font-weight: 600;
+    font-size: calc(40px * var(--font-scale));
+    color: var(--text); letter-spacing: -0.005em;
+  }
+  .def-formula .key { color: var(--accent); font-weight: 800; margin-right: 8px; }
+  .def-formula .op { color: var(--text-secondary); margin: 0 18px; font-weight: 500; }
+  .def-note {
+    font-size: calc(22px * var(--font-scale)); color: var(--text-secondary);
+    text-align: center; line-height: 1.7; max-width: 1300px; font-weight: 500;
+  }
+  .def-note strong { color: var(--text); font-weight: 700; }
+
+  /* ===== Page 8: AND 조건 ===== */
+  .ref-tag {
+    font-family: 'SFProDisplay'; font-weight: 700;
+    font-size: calc(22px * var(--font-scale));
+    color: var(--text-secondary); letter-spacing: 0.06em; margin-bottom: 12px;
+  }
+  .ref-title {
+    font-size: calc(44px * var(--font-scale)); margin-bottom: 50px;
+    line-height: 1.4; font-weight: 700;
+    font-family: 'YouandiNewKrTitle', sans-serif;
+  }
+  .ref-title strong { color: var(--accent); }
+  .and-cond {
+    display: grid; grid-template-columns: 1fr 80px 1fr 80px 1fr;
+    align-items: stretch; gap: 16px;
+  }
+  .and-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 18px; padding: 38px 30px;
+    display: flex; flex-direction: column; gap: 18px;
+    min-height: 320px;
+  }
+  .and-card .head {
+    font-family: 'YouandiNewKrTitle', sans-serif;
+    font-size: calc(30px * var(--font-scale)); color: var(--text);
+  }
+  .and-card .body {
+    font-size: calc(20px * var(--font-scale));
+    color: var(--text-secondary); line-height: 1.7; font-weight: 500;
+  }
+  .and-card .body strong { color: var(--text); font-weight: 700; }
+  .and-symbol {
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'YouandiNewKrTitle', sans-serif;
+    font-size: calc(34px * var(--font-scale));
+    color: var(--accent);
+  }
+  .and-foot {
+    margin-top: 36px;
+    font-size: calc(20px * var(--font-scale));
+    color: var(--text-secondary); font-weight: 500; line-height: 1.6;
+  }
+  .and-foot strong { color: var(--text); font-weight: 700; }
+
+  /* ===== Page 11,18: black-head 2 카드 ===== */
+  .bh-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; flex: 1; min-height: 0; margin-top: 36px; }
+  .bh-card {
+    border: 1px solid var(--border); border-radius: 20px;
+    overflow: hidden; display: flex; flex-direction: column;
+    background: var(--surface);
+  }
+  .bh-card .head {
+    background: var(--text); color: var(--bg);
+    padding: 26px; text-align: center;
+    font-family: 'YouandiNewKrTitle', sans-serif;
+    font-size: calc(32px * var(--font-scale)); font-weight: 700;
+  }
+  .bh-card .body {
+    padding: 38px 36px; flex: 1;
+    display: flex; flex-direction: column; gap: 22px;
+  }
+  .bh-card .lede {
+    font-family: 'YouandiNewKrTitle', sans-serif;
+    font-size: calc(28px * var(--font-scale));
+    line-height: 1.5; color: var(--text);
+  }
+  .bh-card .desc {
+    font-size: calc(22px * var(--font-scale));
+    line-height: 1.7; color: var(--text-secondary); font-weight: 500;
+  }
+  .bh-card .desc strong { color: var(--text); font-weight: 700; }
+  .bh-card ul { list-style: none; display: flex; flex-direction: column; gap: 14px; }
+  .bh-card li {
+    font-size: calc(22px * var(--font-scale)); color: var(--text);
+    line-height: 1.7; padding-left: 22px; position: relative; font-weight: 500;
+  }
+  .bh-card li::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent); position: absolute; left: 6px; top: 14px;
+  }
+
+  /* ===== Page 12: split RDI ===== */
+  .split-pills { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 24px; }
+  .split-pill {
+    border-radius: 14px; padding: 20px 28px; text-align: center;
+    font-family: 'YouandiNewKrTitle', sans-serif;
+    font-size: calc(34px * var(--font-scale));
+    background: var(--text); color: var(--bg);
+  }
+  .split-pill.alt {
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--border-strong);
+  }
+  .split-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: 22px; flex: 1; min-height: 0; }
+  .split-detail .col {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 18px; padding: 38px 36px;
+    display: flex; flex-direction: column; gap: 18px;
+  }
+  .split-detail .col h4 {
+    font-family: 'YouandiNewKrTitle', sans-serif;
+    font-size: calc(26px * var(--font-scale)); color: var(--text);
+  }
+  .split-detail .col ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .split-detail .col li {
+    font-size: calc(20px * var(--font-scale)); color: var(--text-secondary);
+    line-height: 1.7; padding-left: 20px; position: relative; font-weight: 500;
+  }
+  .split-detail .col li::before {
+    content: ''; width: 5px; height: 5px; border-radius: 50%;
+    background: var(--accent); position: absolute; left: 6px; top: 14px;
+  }
+  .split-detail .col p {
+    font-size: calc(20px * var(--font-scale)); color: var(--text-secondary);
+    line-height: 1.65; font-weight: 500;
+  }
+  .split-detail .col p strong { color: var(--text); font-weight: 700; }
+
+  /* ===== Page 15,19: 패턴 4종 ===== */
+  .pattern-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin-top: 28px; flex: 1; min-height: 0; }
+  .pattern-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: 38px 32px;
+    display: flex; flex-direction: column; gap: 22px;
+  }
+  .pattern-card .code {
+    font-family: 'SFProDisplay'; font-weight: 800;
+    font-size: calc(72px * var(--font-scale));
+    letter-spacing: 0.04em; color: var(--text);
+  }
+  .pattern-card .code .o { color: var(--accent); }
+  .pattern-card .code .x { color: var(--negative); }
+  .pattern-card .pname {
+    font-family: 'YouandiNewKrTitle', sans-serif;
+    font-size: calc(28px * var(--font-scale)); color: var(--text);
+  }
+  .pattern-card .pdesc {
+    font-size: calc(20px * var(--font-scale)); color: var(--text-secondary);
+    line-height: 1.7; font-weight: 500;
+  }
+  .pattern-card .pdesc strong { color: var(--text); font-weight: 700; }
+  .pattern-card .ptag {
+    margin-top: auto; border-top: 1px solid var(--border); padding-top: 14px;
+    font-family: 'SFProDisplay'; font-weight: 700; letter-spacing: 0.1em;
+    font-size: calc(16px * var(--font-scale)); color: var(--text-secondary);
+  }
+  .pattern-foot {
+    font-size: calc(20px * var(--font-scale)); color: var(--text-secondary);
+    margin-top: -20px; margin-bottom: 12px; font-weight: 500;
+  }
+
+  /* ===== Page 21: BA 인트로 ===== */
+  .ba-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; margin-top: 30px; flex: 1; min-height: 0; }
+  .ba-card {
+    border: 1px solid var(--border); border-radius: 22px;
+    overflow: hidden; display: flex; flex-direction: column;
+    background: var(--surface);
+  }
+  .ba-card .head {
+    background: var(--text); color: var(--bg);
+    padding: 28px; text-align: center;
+    font-family: 'YouandiNewKrTitle', sans-serif;
+    font-size: calc(32px * var(--font-scale));
+  }
+  .ba-card .body {
+    padding: 36px; flex: 1;
+    display: flex; flex-direction: column; gap: 22px;
+  }
+  .ba-card .lede {
+    font-family: 'YouandiNewKrTitle', sans-serif;
+    font-size: calc(26px * var(--font-scale));
+    text-align: center; line-height: 1.5; color: var(--text);
+  }
+  .ba-card .items {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 22px 24px;
+  }
+  .ba-card .items .label {
+    font-family: 'SFProDisplay'; font-weight: 700;
+    font-size: calc(18px * var(--font-scale));
+    color: var(--text); margin-bottom: 10px;
+  }
+  .ba-card .items ul { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .ba-card .items li {
+    font-size: calc(20px * var(--font-scale)); color: var(--text);
+    line-height: 1.65; padding-left: 18px; position: relative; font-weight: 500;
+  }
+  .ba-card .items li::before {
+    content: ''; width: 5px; height: 5px; border-radius: 50%;
+    background: var(--accent); position: absolute; left: 4px; top: 14px;
+  }
+
+  /* ===== Page 25: plan table ===== */
+  .plan-table { width: 100%; border-collapse: collapse; margin-top: 24px; }
+  .plan-table th {
+    font-family: 'YouandiNewKrTitle', sans-serif; font-weight: 700;
+    font-size: calc(28px * var(--font-scale));
+    text-align: left; padding: 24px 26px;
+    border-bottom: 2px solid var(--text); color: var(--text);
+  }
+  .plan-table th.hl { color: var(--accent); }
+  .plan-table th small { display: block; font-family: 'SFProDisplay'; font-weight: 500; font-size: calc(20px * var(--font-scale)); color: var(--text-secondary); margin-top: 4px; }
+  .plan-table td {
+    font-family: 'SFProDisplay'; font-weight: 500;
+    font-size: calc(22px * var(--font-scale));
+    padding: 24px 26px; vertical-align: top; line-height: 1.65;
+    border-bottom: 1px solid var(--border); color: var(--text);
+  }
+  .plan-table td .muted { color: var(--text-secondary); display: block; margin-top: 4px; }
+  .plan-table td.label {
+    font-family: 'YouandiNewKrTitle', sans-serif; font-weight: 700;
+    font-size: calc(24px * var(--font-scale)); color: var(--text);
+    width: 130px;
+  }
+  .plan-table tr.row-hl td {
+    background: color-mix(in srgb, var(--warning) 18%, transparent);
+  }
+
+  /* ===== Progress bar ===== */
+  .progress-bar {
+    position: fixed; top: 0; left: 0; height: 3px; z-index: 9998;
+    background: linear-gradient(90deg, var(--accent), var(--accent-secondary));
+    transition: width 0.4s ease; width: 0%;
+  }
+
+  /* ===== Slide nav (bottom) ===== */
+  .slide-nav {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 10px; z-index: 9998;
+  }
+  .slide-nav button {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: transparent; border: none; color: var(--text);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    opacity: 0.4; transition: opacity 0.2s;
+  }
+  .slide-nav button:hover { opacity: 1; }
+  .slide-counter {
+    font-size: 14px; color: var(--text); font-weight: 400;
+    min-width: 48px; text-align: center; opacity: 0.4;
+    font-family: 'SFProDisplay', sans-serif;
+  }
+
+  /* ===== Overview panel ===== */
+  #overview-panel {
+    position: fixed; bottom: 0; left: 0; right: 0; height: 220px;
+    background: #000; z-index: 10000;
+    transform: translateY(100%);
+    transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex; flex-direction: row; align-items: center;
+    border-top: 1px solid rgba(255,255,255,0.22);
+  }
+  #overview-panel.open { transform: translateY(0); }
+  #overview-controls {
+    flex-shrink: 0; width: 210px; height: 100%;
+    padding: 20px 22px; display: flex; flex-direction: column; gap: 4px; justify-content: center;
+    border-right: 1px solid rgba(255,255,255,0.14);
+  }
+  #overview-controls button {
+    width: 100%; padding: 8px 12px; border: none; border-radius: 6px;
+    background: transparent; color: rgba(255,255,255,0.92); font-size: 13px;
+    font-family: inherit; cursor: pointer; text-align: left;
+    display: flex; align-items: center; gap: 8px; transition: background 0.15s;
+  }
+  #overview-controls button:hover { background: rgba(255,255,255,0.08); }
+  #overview-controls button.control-focus,
+  #overview-controls .control-focus {
+    background: rgba(255,255,255,0.14);
+    outline: 1px solid rgba(255,255,255,0.4);
+  }
+  #overview-controls .font-row { display: flex; align-items: center; gap: 4px; padding: 2px 0; border-radius: 6px; }
+  #overview-controls .font-row button { flex: 1; justify-content: center; padding: 6px 4px; }
+  #overview-controls .font-row span { min-width: 42px; text-align: center; font-size: 12px; color: rgba(255,255,255,0.5); }
+
+  #overview-track {
+    flex: 1; height: 100%;
+    display: flex; align-items: center; gap: 14px;
+    padding: 0 48px;
+    overflow-x: auto; scroll-behavior: smooth;
+    scrollbar-width: none;
+  }
+  #overview-track::-webkit-scrollbar { display: none; }
+  .overview-item {
+    flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 8px;
+    cursor: pointer; opacity: 0.5; transition: opacity 0.2s;
+  }
+  .overview-item:hover { opacity: 0.8; }
+  .overview-item.overview-focus,
+  .overview-item.overview-current { opacity: 1; }
+  .overview-thumb {
+    width: 180px; height: 96px;
+    overflow: hidden; position: relative; border-radius: 8px;
+    border: 2px solid rgba(255,255,255,0.18);
+    background: var(--bg);
+  }
+  .overview-item.overview-focus .overview-thumb { border-color: var(--accent); }
+  .overview-item.overview-current .overview-thumb { border-color: rgba(255,255,255,0.85); }
+  .overview-item.overview-focus.overview-current .overview-thumb { border-color: var(--accent); }
+  .overview-clone {
+    width: 2040px !important; height: 1080px !important;
+    position: absolute !important; top: 0 !important; left: 0 !important;
+    transform: scale(0.08824) !important; transform-origin: top left !important;
+    opacity: 1 !important; pointer-events: none !important;
+  }
+  .overview-clone .animate { animation: none !important; opacity: 1 !important; transform: none !important; }
+  .overview-num {
+    font-size: 11px; color: rgba(255,255,255,0.48);
+    font-family: 'SFProDisplay'; font-weight: 500;
+  }
+  .overview-item.overview-focus .overview-num { color: rgba(255,255,255,0.95); }
+  .overview-item.overview-current .overview-num { color: #fff; }
+
+  /* ===== Print ===== */
+  @media print {
+    .slide-nav, #overview-panel, .progress-bar { display: none !important; }
+    .slide { page-break-after: always; }
+  }
+</style>
+</head>
+<body>
+
+<!-- PROGRESS BAR -->
+<div class="progress-bar" id="progressBar" role="progressbar" aria-label="슬라이드 진행"></div>
+
+<!-- SLIDES WRAPPER -->
+<div class="slides-wrapper" id="slidesWrapper">
+
+  <!-- ===== Page 0 — Cover ===== -->
+  <section class="slide slide-cover" data-bg="dark">
+    <h1 class="cover-title animate delay-1">정밀 타격 대시보드 및<br>카드앱의 <span class="accent">세이버 메트릭스</span> 제안</h1>
+    <div class="cover-meta animate delay-2">UX Insight팀<span class="sep"></span>2026. 4. 28</div>
+  </section>
+
+  <!-- ===== Page 1 — 세그 명칭 정의 ===== -->
+  <section class="slide">
+    <div class="slide-tag animate">SEGMENT TAXONOMY</div>
+    <h2 class="slide-title sm animate delay-1">세그별 명칭 정의</h2>
+    <table class="seg-table animate delay-2">
+      <thead>
+        <tr><th></th><th>A안</th><th>B안</th><th>C안</th><th>D안</th></tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="5" class="group-label">Acquisition Track · 비활성 사용자</td></tr>
+        <tr>
+          <td class="row-label">미설치자<small>로그인 이력 없음</small></td>
+          <td>No Show</td><td>Newbie</td><td>Cold</td><td>Hiding</td>
+        </tr>
+        <tr>
+          <td class="row-label">장기 미이용자<small>4개월 이상 연속 미로그인</small></td>
+          <td>Long-D</td><td>Long-Lost</td><td>Churn</td><td>Missing</td>
+        </tr>
+        <tr>
+          <td class="row-label">간헐 이용자<small>그 외 비활성</small></td>
+          <td>On-Off</td><td>Nomad</td><td>Float</td><td>Wandering</td>
+        </tr>
+        <tr><td colspan="5" class="group-label muted">Retention Track · 활성 사용자 (LF 모드 주 분석 대상)</td></tr>
+        <tr class="muted-row"><td class="row-label">Light<small>1~2일</small></td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr class="muted-row"><td class="row-label">Casual<small>3~7일</small></td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+        <tr class="muted-row"><td class="row-label">Power<small>8일 이상</small></td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ===== Page 2 — 대시보드 V.08 인트로 ===== -->
+  <section class="slide">
+    <div class="slide-tag animate">대시보드 V.08</div>
+    <h2 class="slide-title sm animate delay-1">정교한 세그멘테이션 기반<br>사용자 현황 파악 및 이상 징후 조기 감지</h2>
+    <div class="intro-cards">
+      <div class="intro-card animate delay-2">
+        <span class="num">1</span>
+        <h3>세그별 사용자 수</h3>
+        <p>6개 세그(Acquisition 3 + Retention 3) 기준 인원·전월 대비 증감·주간 변동 추세</p>
+      </div>
+      <div class="intro-card animate delay-3">
+        <span class="num">2</span>
+        <h3>세그별 사용자 속성</h3>
+        <p>연령·보유 카드·결제 패턴 등 세그별 페르소나 비교 — 캠페인 타겟팅 기준 확인</p>
+      </div>
+      <div class="intro-card animate delay-4">
+        <span class="num">3</span>
+        <h3>Retention 트랙<br>로그인 비교</h3>
+        <p>Light·Casual·Power 0~10일+ 일수 분포 — 트랙 내 이상 분포 조기 감지</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Page 3 — V.08 > 세그별 현황 ===== -->
+  <section class="slide">
+    <div class="split">
+      <div class="split-text">
+        <div class="slide-tag animate">대시보드 V.08</div>
+        <h2 class="animate delay-1">세그별 현황</h2>
+        <ul>
+          <li class="animate delay-2">6개 세그의 <strong>인원 / 전월 대비 / 주차 추세</strong>를 한 화면으로</li>
+          <li class="animate delay-3">Acquisition·Retention 두 트랙을 시각적으로 분리해 <strong>한쪽 쏠림 즉시 인지</strong></li>
+          <li class="animate delay-4">각 카드 <strong>전월 대비 증감 색상</strong>으로 이상치 즉각 표시</li>
+          <li class="animate delay-5">마케터가 <strong>주 1회 CSV 업데이트만으로</strong> 현황 파악 가능</li>
+        </ul>
+      </div>
+      <div class="split-img animate delay-2">
+        <img src="imgs/img_3.png" alt="세그별 현황 대시보드">
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Page 4 — V.08 > 이탈 조기 경보 ===== -->
+  <section class="slide">
+    <div class="split">
+      <div class="split-text">
+        <div class="slide-tag animate">대시보드 V.08</div>
+        <h2 class="animate delay-1">이탈 조기 경보</h2>
+        <ul>
+          <li class="animate delay-2">Retention 트랙 내 <strong>일수 분포</strong>를 11버킷(0~10일+)으로 표시</li>
+          <li class="animate delay-3">Light → Casual → Power 흐름 중 <strong>비정상 분포 빨간 테두리 신호</strong></li>
+          <li class="animate delay-4">분포만 봐도 <strong>다음 주 이탈 위험 그룹</strong> 즉시 식별</li>
+          <li class="animate delay-5">단순 시각 신호 = 무거운 경보 시스템 아닌 <strong>매주 가벼운 확인 도구</strong></li>
+        </ul>
+      </div>
+      <div class="split-img animate delay-2">
+        <img src="imgs/img_4.png" alt="이탈 조기 경보 대시보드">
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Page 5 — 야구 vs 카드앱 ===== -->
+  <section class="slide">
+    <div class="slide-tag animate">SABERMETRICS</div>
+    <h2 class="slide-title sm animate delay-1">야구의 정밀 지표를 카드앱에</h2>
+    <p class="slide-sub animate delay-2">
+      야구는 한 타자의 기여도를 단순 타율이 아닌 <strong style="color:var(--text);">출루·장타·승리 기여</strong>로 분리해 본다.<br>
+      앱도 같은 방식으로 — 단순 DAU 대신 <strong style="color:var(--text);">유입·재방문·습관 형성</strong> 단계별 정밀 지표가 필요.
+    </p>
+    <div class="compare-row">
+      <div class="compare-col animate delay-3">
+        <span class="label">Baseball · Sabermetrics</span>
+        <h3>야구</h3>
+        <div class="metric-row"><div class="k">OPS</div><div class="v">출루율 + 장타율 — 종합 공격 기여</div></div>
+        <div class="metric-row"><div class="k">WHIP</div><div class="v">이닝당 출루 허용 — 실점 안정성</div></div>
+        <div class="metric-row"><div class="k">WAR</div><div class="v">대체 선수 대비 승리 기여 — 종합 가치</div></div>
+        <div class="metric-row"><div class="k">WPA</div><div class="v">승리 확률 변동 기여</div></div>
+      </div>
+      <div class="compare-arrow animate delay-4">→</div>
+      <div class="compare-col alt animate delay-5">
+        <span class="label">Card App · UX Sabermetrics</span>
+        <h3>카드앱</h3>
+        <div class="metric-row"><div class="k">FAI</div><div class="v">First Action Index — 신규 → 정기 전환</div></div>
+        <div class="metric-row"><div class="k">RDI</div><div class="v">Revisit Driver Index — 재방문 기여</div></div>
+        <div class="metric-row"><div class="k">VRI</div><div class="v">Visit Regularity Index — 습관 형성</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Page 6 — FAI/RDI/VRI 흐름 ===== -->
+  <section class="slide">
+    <div class="slide-tag animate">3 CORE INDICES</div>
+    <h2 class="slide-title sm animate delay-1">신규 → 정기 → 습관</h2>
+    <div class="flow-row">
+      <div class="flow-card animate delay-2">
+        <span class="stage">STAGE 01 · 신규</span>
+        <h3>FAI</h3>
+        <div class="sub">First Action Index</div>
+        <p class="body">신규 가입자가 <strong>온보딩 핵심 액션을 달성한 비율</strong> — 앱 초기 정착 강도</p>
+      </div>
+      <div class="flow-card animate delay-3">
+        <span class="stage">STAGE 02 · 정기</span>
+        <h3>RDI</h3>
+        <div class="sub">Revisit Driver Index</div>
+        <p class="body">기존 회원이 <strong>다시 앱을 켠 동인 기능</strong>의 기여도 — 루틴/혜택 분리 측정</p>
+      </div>
+      <div class="flow-card animate delay-4">
+        <span class="stage">STAGE 03 · 습관</span>
+        <h3>VRI</h3>
+        <div class="sub">Visit Regularity Index</div>
+        <p class="body"><strong>3개월 연속</strong> 일정 빈도로 방문하는 사용자 비중 — 습관화 강도</p>
+      </div>
+    </div>
+    <div class="flow-arrow">
+      <span>가입 직후 · 14일 이내</span>
+      <span>가입 후 ~ 90일</span>
+      <span>90일 이후 지속</span>
+    </div>
+  </section>
+
+  <!-- ===== Page 7 — FAI 정의 ===== -->
+  <section class="slide def-wrap">
+    <div class="def-tag animate">STAGE 01 · 신규</div>
+    <div class="def-name animate delay-1"><span class="accent">FAI</span> · First Action Index</div>
+    <div class="def-formula animate delay-2">
+      <span class="key">FAI</span>=<span class="op"></span>온보딩 달성자 수<span class="op">/</span>신규 회원 수<span class="op">×</span>100
+    </div>
+    <p class="def-note animate delay-3">신규 회원이 <strong>온보딩 핵심 액션 (알림함·최근이용내역·앱카드)</strong>을 모두 거쳐<br>앱 정착에 진입했는지 측정. 단순 가입자가 아닌 <strong>실제 활성화된 신규</strong>를 분리해 본다.</p>
+  </section>
+
+  <!-- ===== Page 8 — FAI AND 조건 ===== -->
+  <section class="slide">
+    <div class="ref-tag animate">FAI · '24년 9월 리포트 기준</div>
+    <h2 class="ref-title animate delay-1">신규 회원의 <strong>온보딩 달성</strong> = 아래 3개 액션을 <strong>모두</strong> 수행</h2>
+    <div class="and-cond">
+      <div class="and-card animate delay-2">
+        <div class="head">알림함 진입</div>
+        <div class="body">신규 가입 후 <strong>알림함 1회 이상 진입</strong> — 메시지 수신 채널 확인</div>
+      </div>
+      <div class="and-symbol animate delay-3">AND</div>
+      <div class="and-card animate delay-4">
+        <div class="head">최근이용내역 조회</div>
+        <div class="body">결제·이용 내역을 <strong>1회 이상 조회</strong> — 거래 가시성 확보</div>
+      </div>
+      <div class="and-symbol animate delay-5">AND</div>
+      <div class="and-card animate delay-6">
+        <div class="head">앱카드 발급/등록</div>
+        <div class="body">앱카드 발급 또는 <strong>모바일 결제 등록</strong> 완료 — 결제 동선 형성</div>
+      </div>
+    </div>
+    <p class="and-foot animate delay-7">세 액션은 OR이 아닌 <strong>AND</strong>. 알림 받기만 한 사용자는 정착 X — 결제까지 이어져야 신규 활성화로 정의.</p>
+  </section>
+
+  <!-- ===== Page 9 — FAI 대시보드 ===== -->
+  <section class="slide">
+    <div class="split">
+      <div class="split-text">
+        <div class="slide-tag animate">FAI</div>
+        <h2 class="animate delay-1">대시보드 시각화</h2>
+        <ul>
+          <li class="animate delay-2">이번 달 <strong>FAI 24%</strong> — 신규 100명 중 24명만 정착</li>
+          <li class="animate delay-3">달성자 76% 미달 — <strong>앱카드 등록 31%</strong>가 가장 큰 병목</li>
+          <li class="animate delay-4">알림함·최근이용내역은 비교적 양호 — <strong>결제 동선 개선이 우선순위</strong></li>
+          <li class="animate delay-5">전월 대비·캠페인 시기별 수치 비교로 <strong>온보딩 캠페인 효과 측정</strong></li>
+        </ul>
+      </div>
+      <div class="split-img animate delay-2">
+        <img src="imgs/img_9.png" alt="FAI 대시보드">
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Page 10 — RDI 정의 ===== -->
+  <section class="slide def-wrap">
+    <div class="def-tag animate">STAGE 02 · 정기</div>
+    <div class="def-name animate delay-1"><span class="accent">RDI</span> · Revisit Driver Index</div>
+    <div class="def-formula animate delay-2">
+      <span class="key">RDI</span>=<span class="op"></span>달성자 수<span class="op">/</span>이용자 수<span class="op">×</span>100
+    </div>
+    <p class="def-note animate delay-3">기존 회원이 <strong>다시 앱을 켠 이유</strong>를 기능 단위로 분해.<br>루틴 기반(결제·명세서·한도)과 혜택 기반(쿠폰·이벤트)을 분리해 측정 — <strong>재방문의 동력 진단</strong>.</p>
+  </section>
+
+  <!-- ===== Page 11 — RDI 2 카드 ===== -->
+  <section class="slide">
+    <div class="slide-tag animate">RDI</div>
+    <h2 class="slide-title sm animate delay-1">재방문을 만드는 <span style="color:var(--accent);">두 가지 동력</span></h2>
+    <div class="bh-cards">
+      <div class="bh-card animate delay-2">
+        <div class="head">기존 회원 재방문 기여 기능</div>
+        <div class="body">
+          <p class="lede">루틴 RDI<br><span style="color:var(--text-secondary);font-family:'SFProDisplay';font-size:calc(20px * var(--font-scale));font-weight:500;">매달 자연스럽게 들르게 만드는 기능</span></p>
+          <p class="desc"><strong>결제 내역 조회·명세서 확인·한도 조회·카드 사용 알림</strong> 등 — 사용자가 <strong>특별한 이유 없이도</strong> 켜는 동선. 이 RDI가 높을수록 앱이 <strong>일상 도구</strong>로 자리잡았다는 의미.</p>
+        </div>
+      </div>
+      <div class="bh-card animate delay-3">
+        <div class="head">혜택 관련 재방문 기여 기능</div>
+        <div class="body">
+          <p class="lede">혜택 RDI<br><span style="color:var(--text-secondary);font-family:'SFProDisplay';font-size:calc(20px * var(--font-scale));font-weight:500;">캠페인이 끌어온 재방문</span></p>
+          <p class="desc"><strong>쿠폰·이벤트·포인트·리워드 알림</strong> 등 — 마케팅 자극으로 발생한 방문. 이 비중이 너무 높으면 <strong>캠페인 의존도</strong> 신호 — 루틴 RDI와 균형 점검.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Page 12 — RDI 분리 ===== -->
+  <section class="slide">
+    <div class="slide-tag animate">RDI</div>
+    <h2 class="slide-title sm animate delay-1">루틴과 혜택을 분리해 측정</h2>
+    <div class="split-pills">
+      <div class="split-pill animate delay-2">루틴 RDI</div>
+      <div class="split-pill alt animate delay-3">혜택 RDI</div>
+    </div>
+    <div class="split-detail">
+      <div class="col animate delay-3">
+        <h4>측정 대상 기능</h4>
+        <ul>
+          <li>결제 내역·명세서 조회</li>
+          <li>한도·잔여 한도 확인</li>
+          <li>카드 사용 알림 진입</li>
+          <li>마이 페이지·자동 결제 설정</li>
+        </ul>
+        <h4 style="margin-top:8px;">의미</h4>
+        <p>캠페인 없이도 발생하는 <strong>자연 재방문</strong> — 높을수록 앱이 일상화.</p>
+      </div>
+      <div class="col animate delay-4">
+        <h4>측정 대상 기능</h4>
+        <ul>
+          <li>쿠폰·포인트 사용</li>
+          <li>이벤트 페이지 진입</li>
+          <li>리워드·캐시백 안내 클릭</li>
+          <li>마케팅 푸시 → 앱 진입</li>
+        </ul>
+        <h4 style="margin-top:8px;">의미</h4>
+        <p>캠페인 자극에 반응한 재방문 — 비중이 과하면 <strong>의존성 위험</strong>.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Page 13 — RDI 대시보드 ===== -->
+  <section class="slide">
+    <div class="split">
+      <div class="split-text">
+        <div class="slide-tag animate">RDI</div>
+        <h2 class="animate delay-1">대시보드 시각화</h2>
+        <ul>
+          <li class="animate delay-2"><strong>Casual 그룹 RDI 74%</strong> — 가장 높은 재방문 동력</li>
+          <li class="animate delay-3">루틴 RDI <strong>58%</strong>·혜택 RDI <strong>46%</strong> — 균형 양호</li>
+          <li class="animate delay-4">Light 그룹은 혜택 RDI > 루틴 RDI — <strong>캠페인 의존</strong> 시그널</li>
+          <li class="animate delay-5">세그별 RDI 비교로 <strong>어디에 어떤 동력을 보강할지</strong> 즉시 판단</li>
+        </ul>
+      </div>
+      <div class="split-img animate delay-2">
+        <img src="imgs/img_13.png" alt="RDI 대시보드">
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Page 14 — VRI 정의 ===== -->
+  <section class="slide def-wrap">
+    <div class="def-tag animate">STAGE 03 · 습관</div>
+    <div class="def-name animate delay-1"><span class="accent">VRI</span> · Visit Recurrence Index</div>
+    <div class="def-formula animate delay-2">
+      <span class="key">VRI</span>=<span class="op"></span>3개월 연속 사용자 수<span class="op">/</span>전체 사용자 수<span class="op">×</span>100
+    </div>
+    <p class="def-note animate delay-3">월 단위 <strong>3개월 연속 방문</strong>이 끊기지 않은 사용자 비중.<br>이번 달만 들른 사용자가 아닌 <strong>습관으로 자리 잡은 진짜 활성</strong> 모수를 가려낸다.</p>
+  </section>
+
+  <!-- ===== Page 15 — VRI 4 패턴 ===== -->
+  <section class="slide">
+    <div class="slide-tag animate">VRI</div>
+    <h2 class="slide-title sm animate delay-1">3개월 방문 패턴 4종</h2>
+    <p class="pattern-foot animate delay-2">왼쪽부터 (전전월 / 전월 / 이번 달) — <span style="color:var(--accent);font-weight:700;">O</span> = 방문, <span style="color:var(--negative);font-weight:700;">X</span> = 미방문</p>
+    <div class="pattern-row">
+      <div class="pattern-card animate delay-3">
+        <div class="code"><span class="o">O</span><span class="o">O</span><span class="o">O</span></div>
+        <div class="pname">유지 관리</div>
+        <p class="pdesc">3개월 연속 방문. 핵심 자산.<br>이탈 방지 캠페인 우선순위 낮음.</p>
+        <div class="ptag">VRI 분자 · CORE</div>
+      </div>
+      <div class="pattern-card animate delay-4">
+        <div class="code"><span class="x">X</span><span class="o">O</span><span class="o">O</span></div>
+        <div class="pname">다음달 방문 유도</div>
+        <p class="pdesc">최근 2달 연속 방문. 다음 달까지 이어지면 CORE 진입.<br>리텐션 캠페인 핵심 타겟.</p>
+        <div class="ptag">CONVERT</div>
+      </div>
+      <div class="pattern-card animate delay-5">
+        <div class="code"><span class="o">O</span><span class="x">X</span><span class="o">O</span></div>
+        <div class="pname">위험 그룹</div>
+        <p class="pdesc">중간 달 이탈 후 복귀. <strong>패턴 불안정</strong>.<br>다음 달 이탈 가능성 높음 — 빠른 개입.</p>
+        <div class="ptag">AT RISK</div>
+      </div>
+      <div class="pattern-card animate delay-6">
+        <div class="code"><span class="x">X</span><span class="x">X</span><span class="o">O</span></div>
+        <div class="pname">FAI 점검</div>
+        <p class="pdesc">2달 미방문 후 갑자기 진입.<br>신규/복귀 동선 — <strong>FAI 단계로 회귀 분석</strong>.</p>
+        <div class="ptag">RE-ONBOARD</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Page 16 — VRI 대시보드 ===== -->
+  <section class="slide">
+    <div class="split">
+      <div class="split-text">
+        <div class="slide-tag animate">VRI</div>
+        <h2 class="animate delay-1">대시보드 시각화</h2>
+        <ul>
+          <li class="animate delay-2">이번 달 VRI = <strong>3개월 연속 방문 비중</strong> 한 줄 표시</li>
+          <li class="animate delay-3">4개 패턴(OOO·XOO·OXO·XXO) <strong>모수 분포</strong>를 함께</li>
+          <li class="animate delay-4">위험 그룹(OXO) 증가 시 <strong>다음 달 이탈 예고 신호</strong></li>
+          <li class="animate delay-5">전월 대비 패턴 이동 흐름으로 <strong>캠페인 효과 검증</strong></li>
+        </ul>
+      </div>
+      <div class="split-img dual animate delay-2">
+        <img src="imgs/img_16_1.png" alt="VRI 대시보드 1">
+        <img src="imgs/img_16_2.png" alt="VRI 대시보드 2">
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Page 17 — LPI 정의 ===== -->
+  <section class="slide def-wrap">
+    <div class="def-tag animate">+ STAGE 04 · 이탈 진단 <span class="badge-discuss">논의 필요</span></div>
+    <div class="def-name animate delay-1"><span class="accent">LPI</span> · Lapse Pattern Index</div>
+    <div class="def-formula animate delay-2">
+      <span class="key">LRI</span>=<span class="op"></span>기여 기능 이용자 수<span class="op">/</span>간헐 이용자 수<span class="op">×</span>100
+    </div>
+    <p class="def-note animate delay-3"><strong>간헐 이용자(Light 진입 직전 모수)</strong>가 어떤 기능을 통해 다시 라이트화되는지 측정.<br>이탈 직전 단계의 <strong>전환 동인</strong>을 진단 — 정의/측정 방식은 추가 논의 필요.</p>
+  </section>
+
+  <!-- ===== Page 18 — LPI 라이트 정의/측정 ===== -->
+  <section class="slide">
+    <div class="slide-tag animate">LPI</div>
+    <h2 class="slide-title sm animate delay-1">라이트 유저 전환 기여 기능 <span class="badge-discuss">논의 필요</span></h2>
+    <div class="bh-cards">
+      <div class="bh-card animate delay-2">
+        <div class="head">정의</div>
+        <div class="body">
+          <p class="desc">간헐 이용자 → Light 트랙 진입에 <strong>직접 기여한 기능</strong>.</p>
+          <p class="desc">간헐 이용자 = 4개월 미만 미로그인 + 이번 달 1~2일 방문에 못 미치는 이용 패턴.</p>
+          <p class="desc">전환 시점 직전 <strong>14일 이내</strong> 사용한 기능을 후보군으로 본다.</p>
+        </div>
+      </div>
+      <div class="bh-card animate delay-3">
+        <div class="head">측정 방식</div>
+        <div class="body">
+          <ul>
+            <li>전환 직전 14일간 기능별 <strong>이용자 수·전환 기여 비중</strong></li>
+            <li>기여도 = 해당 기능 이용 → Light 진입한 모수 / 전체 간헐 모수</li>
+            <li>이벤트 기반 측정 — 단순 노출 X, <strong>액션</strong> 기준</li>
+            <li>전월 대비 기여도 변화로 <strong>전환 캠페인 효과</strong> 추적</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Page 19 — LPI 4 패턴 ===== -->
+  <section class="slide">
+    <div class="slide-tag animate">LPI</div>
+    <h2 class="slide-title sm animate delay-1">이탈 진행 패턴 4종 <span class="badge-discuss">논의 필요</span></h2>
+    <p class="pattern-foot animate delay-2">왼쪽부터 (전전월 / 전월 / 이번 달) — 이번 달 X 시리즈</p>
+    <div class="pattern-row">
+      <div class="pattern-card animate delay-3">
+        <div class="code"><span class="o">O</span><span class="o">O</span><span class="x">X</span></div>
+        <div class="pname">이탈 초기</div>
+        <p class="pdesc">2달 연속 후 이번 달 미방문.<br><strong>가장 빠른 회복 가능성</strong> — 즉시 알림 캠페인.</p>
+        <div class="ptag">EARLY</div>
+      </div>
+      <div class="pattern-card animate delay-4">
+        <div class="code"><span class="x">X</span><span class="o">O</span><span class="x">X</span></div>
+        <div class="pname">단발 방문</div>
+        <p class="pdesc">한 달 잠깐 들렀다가 다시 이탈.<br>패턴 미형성 — <strong>FAI 재진입</strong> 필요.</p>
+        <div class="ptag">SPIKE</div>
+      </div>
+      <div class="pattern-card animate delay-5">
+        <div class="code"><span class="o">O</span><span class="x">X</span><span class="x">X</span></div>
+        <div class="pname">이탈 진행</div>
+        <p class="pdesc">2달 연속 미방문. <strong>위험 신호</strong>.<br>혜택 기반 푸시로 마지막 회복 시도.</p>
+        <div class="ptag">DROPPING</div>
+      </div>
+      <div class="pattern-card animate delay-6">
+        <div class="code"><span class="x">X</span><span class="x">X</span><span class="x">X</span></div>
+        <div class="pname">이탈 장기화</div>
+        <p class="pdesc">3달 연속 미방문 — <strong>장기 미이용자 진입</strong>.<br>일반 캠페인보다 별도 복귀 트랙 필요.</p>
+        <div class="ptag">DORMANT</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Page 20 — LPI 대시보드 ===== -->
+  <section class="slide">
+    <div class="split">
+      <div class="split-text">
+        <div class="slide-tag animate">LPI</div>
+        <h2 class="animate delay-1">대시보드 시각화 <span class="badge-discuss">논의 필요</span></h2>
+        <ul>
+          <li class="animate delay-2">4개 패턴 <strong>모수 분포</strong> + 전월 대비 증감</li>
+          <li class="animate delay-3">이탈 초기(OOX) 증가 시 <strong>최우선 타겟</strong></li>
+          <li class="animate delay-4">장기화(XXX) 비중으로 <strong>장기 미이용 트랙 압력</strong> 가시화</li>
+          <li class="animate delay-5">각 패턴별 <strong>전환 기여 기능 Top 3</strong> 함께 표시</li>
+        </ul>
+      </div>
+      <div class="split-img dual animate delay-2">
+        <img src="imgs/img_20_1.png" alt="LPI 대시보드 1">
+        <img src="imgs/img_20_2.png" alt="LPI 대시보드 2">
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Page 21 — BA 인트로 ===== -->
+  <section class="slide">
+    <div class="slide-tag animate">+ BUSINESS ATTRIBUTION</div>
+    <h2 class="slide-title sm animate delay-1">앱의 비즈니스 기여도 정량화</h2>
+    <p class="slide-sub animate delay-2">직접 수익·비용 절감·간접 수익으로 구분하여 이용자 수 및 비용 가시화.</p>
+    <div class="ba-cards">
+      <div class="ba-card animate delay-3">
+        <div class="head">직접 수익</div>
+        <div class="body">
+          <div class="lede">앱 이용으로 발생한<br>신규·증분 수익</div>
+          <div class="items">
+            <div class="label">주요 항목</div>
+            <ul><li>CA·CL·리볼빙</li><li>FeeBiz</li><li>생활요금 자동 결제</li></ul>
+          </div>
+        </div>
+      </div>
+      <div class="ba-card animate delay-4">
+        <div class="head">비용 절감</div>
+        <div class="body">
+          <div class="lede">디지털 전환으로<br>절감한 OPEX</div>
+          <div class="items">
+            <div class="label">주요 항목</div>
+            <ul><li>우편 명세서 → 앱 명세서 전환</li><li>마케팅 미동의 → 동의 전환</li><li>혜택 LMS → 앱 푸시 전환</li></ul>
+          </div>
+        </div>
+      </div>
+      <div class="ba-card animate delay-5">
+        <div class="head">간접 수익</div>
+        <div class="body">
+          <div class="lede">앱 이용 및 세그 전환에<br>따른 기대 수익</div>
+          <div class="items">
+            <div class="label">주요 항목</div>
+            <ul><li>앱 미이용 → 앱 이용</li><li>Light → Casual 전환</li><li>Casual → Power 전환</li></ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Page 22 — BA > 직접 수익 ===== -->
+  <section class="slide">
+    <div class="split">
+      <div class="split-text">
+        <div class="slide-tag animate">BA</div>
+        <h2 class="animate delay-1">직접 수익</h2>
+        <ul>
+          <li class="animate delay-2">앱 이용으로 발생한 <strong>신규·증분 수익</strong> 항목별 가시화</li>
+          <li class="animate delay-3">이번 달 직접 수익 합계 + <strong>전월 대비 증감</strong></li>
+          <li class="animate delay-4">CA·CL·리볼빙·FeeBiz·생활요금 결제 등 <strong>5개 항목</strong></li>
+          <li class="animate delay-5">항목별 <strong>이용자 수·신청 금액·앱 신청 점유율</strong> 한눈에</li>
+        </ul>
+        <p class="split-foot animate delay-6">ex.1) 직접 수익 기여액 : 항목별 이용자 수·신청 금액 합산·앱 신청 점유율 및 전월 대비 증감 정보 제공</p>
+      </div>
+      <div class="split-img dual animate delay-2">
+        <img src="imgs/img_22_1.png" alt="BA 직접 수익 대시보드 1">
+        <img src="imgs/img_22_2.png" alt="BA 직접 수익 대시보드 2">
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Page 23 — BA > 비용 절감 ===== -->
+  <section class="slide">
+    <div class="split">
+      <div class="split-text">
+        <div class="slide-tag animate">BA</div>
+        <h2 class="animate delay-1">비용 절감</h2>
+        <ul>
+          <li class="animate delay-2">디지털 전환으로 절감한 <strong>OPEX</strong> 가시화</li>
+          <li class="animate delay-3">우편 명세서·마케팅 동의·혜택 LMS의 <strong>앱 전환율</strong></li>
+          <li class="animate delay-4">전환자 수·절감액 합계·전환율 — <strong>3개 핵심 지표</strong></li>
+          <li class="animate delay-5">전환 1건당 OPEX 절감액 환산으로 <strong>연간 절감 효과 추정</strong></li>
+        </ul>
+        <p class="split-foot animate delay-6">ex.2) 비용 절감 기여액 : 항목별 이용자 수·절감액 합산·전환율 현황 및 전월 대비 증감 정보 제공</p>
+      </div>
+      <div class="split-img animate delay-2">
+        <img src="imgs/img_23.png" alt="BA 비용 절감 대시보드">
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Page 24 — BA > 간접 수익 ===== -->
+  <section class="slide">
+    <div class="split">
+      <div class="split-text">
+        <div class="slide-tag animate">BA</div>
+        <h2 class="animate delay-1">간접 수익</h2>
+        <ul>
+          <li class="animate delay-2">앱 미이용자의 <strong>앱 활성 전환 기대 수익</strong></li>
+          <li class="animate delay-3">Light → Casual·Casual → Power 등 <strong>세그 상향 전환</strong> 가치</li>
+          <li class="animate delay-4">역방향 전환(Casual → Light, Power → Casual)의 <strong>손실 수익</strong>도 함께</li>
+          <li class="animate delay-5">전환 1회당 기대 수익으로 <strong>마케팅 ROI 산출 근거</strong></li>
+        </ul>
+        <p class="split-foot animate delay-6">ex.3) 앱 이용에 따른 기대 수익 : 신규 가입 및 세그 전환에 따른 인당 기대 수익 현황</p>
+      </div>
+      <div class="split-img animate delay-2">
+        <img src="imgs/img_24.png" alt="BA 간접 수익 대시보드">
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Page 25 — 대시보드 구축 계획 ===== -->
+  <section class="slide">
+    <div class="slide-tag animate">ROADMAP</div>
+    <h2 class="slide-title sm animate delay-1">대시보드 구축 계획</h2>
+    <table class="plan-table animate delay-2">
+      <thead>
+        <tr>
+          <th></th>
+          <th>v 0.8 <small>(전체 공유용)</small></th>
+          <th>v 0.9 <small>(전체 공유용)</small></th>
+          <th class="hl">v 1.0 <small>(전체 공유 + 내부 확인용)</small></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="label">일정</td>
+          <td>5월 목표</td><td>7월 목표</td><td>9월 목표</td>
+        </tr>
+        <tr>
+          <td class="label">구축 형태</td>
+          <td>HTML 파일<span class="muted">(데이터 수동 업데이트)</span></td>
+          <td>좌동</td>
+          <td>데이터 자동 업데이트 목표<span class="muted">전체용 : MIS(업무망) Vs. SALAD(관리망) / 내부용 : SALAD(관리망)</span></td>
+        </tr>
+        <tr class="row-hl">
+          <td class="label">주요 정보</td>
+          <td>주 단위<span class="muted">· 세그별 이용자 수<br>· Retention 트랙 이탈 조기 경보</span></td>
+          <td>(+) 월 단위<span class="muted">· 세그별 전환율<br>· 비즈니스 기여도</span></td>
+          <td>(+) 월 단위<span class="muted">내부 확인용 : 세이버 매트릭스 (FAI·RDI·VRI)</span></td>
+        </tr>
+        <tr>
+          <td class="label">장점</td>
+          <td>데이터 파트 운영 리소스 최소화<span class="muted">빠르게 데이터 시각화 가능</span></td>
+          <td>좌동</td>
+          <td>UXI 운영 리소스 최소화<span class="muted">대시보드 접근성 향상</span></td>
+        </tr>
+        <tr>
+          <td class="label">단점</td>
+          <td>매주 수동으로 데이터 업데이트 및<span class="muted">본부 내 수기 전파 필요</span></td>
+          <td>좌동</td>
+          <td>대시보드 구축 환경에 따른 개발 리소스 상이<span class="muted">데이터 파트의 운영/관리 리소스 커짐</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ===== Page 26 — EOD ===== -->
+  <section class="slide slide-eod">
+    <div class="eod-text animate">EOD</div>
+  </section>
+
+</div>
+
+<!-- SLIDE NAV -->
+<nav class="slide-nav" aria-label="슬라이드 네비게이션">
+  <button onclick="prevSlide()" aria-label="이전 슬라이드">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+  </button>
+  <span class="slide-counter" id="slideCounter" aria-live="polite">1 / 27</span>
+  <button onclick="nextSlide()" aria-label="다음 슬라이드">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+  </button>
+</nav>
+
+<!-- OVERVIEW PANEL -->
+<div id="overview-panel">
+  <div id="overview-controls">
+    <button data-ctrl="0" onclick="closeOverview(); toggleFullscreen();"><span id="fsIcon">⛶</span><span id="fsLabel">전체 화면</span></button>
+    <button data-ctrl="1" onclick="closeOverview(); cycleTheme();"><span id="themeIcon">🌙</span><span id="themeLabel">Dark</span></button>
+    <div class="font-row" data-ctrl="2">
+      <button onclick="adjustFontScale(-0.1)">A−</button>
+      <span id="fontScaleLabel">100%</span>
+      <button onclick="adjustFontScale(0.1)">A+</button>
+    </div>
+    <button data-ctrl="3" onclick="window.print()"><span>🖨️</span><span>Print / PDF</span></button>
+  </div>
+  <div id="overview-track"></div>
+</div>
+
+<script>
+  // ===== Slides core =====
+  var slides = Array.from(document.querySelectorAll('.slide'));
+  var total = slides.length;
+  var currentSlide = 0;
+  var counter = document.getElementById('slideCounter');
+  var progress = document.getElementById('progressBar');
+
+  function showSlide(idx) {
+    idx = Math.max(0, Math.min(total - 1, idx));
+    slides.forEach(function (s, i) {
+      s.classList.remove('active', 'exit-left');
+      if (i === idx) s.classList.add('active');
+      else if (i < idx) s.classList.add('exit-left');
+    });
+    currentSlide = idx;
+    counter.textContent = (idx + 1) + ' / ' + total;
+    progress.style.width = ((idx + 1) / total * 100) + '%';
+    // animate 재트리거
+    var animEls = slides[idx].querySelectorAll('.animate');
+    animEls.forEach(function (el) { el.style.animation = 'none'; void el.offsetHeight; el.style.animation = ''; });
+  }
+  function nextSlide() { if (currentSlide < total - 1) showSlide(currentSlide + 1); }
+  function prevSlide() { if (currentSlide > 0) showSlide(currentSlide - 1); }
+  window.nextSlide = nextSlide; window.prevSlide = prevSlide; window.showSlide = showSlide;
+
+  // ===== Theme =====
+  var savedTheme = localStorage.getItem('dashboard-theme') || 'dark';
+  function applyTheme(t) {
+    document.documentElement.className = 'theme-' + t;
+    document.getElementById('themeIcon').textContent = t === 'dark' ? '🌙' : '☀️';
+    document.getElementById('themeLabel').textContent = t === 'dark' ? 'Dark' : 'Light';
+    localStorage.setItem('dashboard-theme', t);
+  }
+  function cycleTheme() { applyTheme(document.documentElement.classList.contains('theme-dark') ? 'light' : 'dark'); }
+  applyTheme(savedTheme);
+  window.cycleTheme = cycleTheme;
+
+  // ===== Font scale =====
+  var currentFontScale = parseFloat(localStorage.getItem('dashboard-font-scale') || '1');
+  document.documentElement.style.setProperty('--font-scale', currentFontScale);
+  document.getElementById('fontScaleLabel').textContent = Math.round(currentFontScale * 100) + '%';
+  function adjustFontScale(delta) {
+    currentFontScale = Math.max(0.7, Math.min(1.5, +(currentFontScale + delta).toFixed(1)));
+    document.documentElement.style.setProperty('--font-scale', currentFontScale);
+    document.getElementById('fontScaleLabel').textContent = Math.round(currentFontScale * 100) + '%';
+    localStorage.setItem('dashboard-font-scale', currentFontScale);
+  }
+  window.adjustFontScale = adjustFontScale;
+
+  // ===== Fullscreen =====
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+      document.getElementById('fsIcon').textContent = '✕';
+      document.getElementById('fsLabel').textContent = '전체 화면 종료';
+    } else {
+      document.exitFullscreen();
+    }
+  }
+  document.addEventListener('fullscreenchange', function () {
+    if (!document.fullscreenElement) {
+      document.getElementById('fsIcon').textContent = '⛶';
+      document.getElementById('fsLabel').textContent = '전체 화면';
+    }
+  });
+  window.toggleFullscreen = toggleFullscreen;
+
+  // ===== Overview panel =====
+  var OVERVIEW_H = 220;
+  var overviewOpen = false;
+  var overviewFocus = 0;
+  var overviewSection = 'thumbs';
+  var overviewControlFocus = 0;
+
+  function buildOverview() {
+    var track = document.getElementById('overview-track');
+    track.innerHTML = '';
+    slides.forEach(function (slide, i) {
+      var item = document.createElement('div');
+      item.className = 'overview-item' + (i === currentSlide ? ' overview-current' : '') + (i === overviewFocus ? ' overview-focus' : '');
+      item.dataset.index = i;
+
+      var thumb = document.createElement('div');
+      thumb.className = 'overview-thumb';
+      var clone = slide.cloneNode(true);
+      clone.classList.add('overview-clone');
+      clone.classList.add('active'); // ensure visible in clone
+      clone.style.opacity = '1';
+      clone.style.transform = 'scale(0.08824)';
+      thumb.appendChild(clone);
+
+      var num = document.createElement('div');
+      num.className = 'overview-num';
+      var eye = (i === currentSlide)
+        ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity:0.7;vertical-align:middle;margin-right:4px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'
+        : '';
+      num.innerHTML = eye + (i + 1);
+
+      item.appendChild(thumb);
+      item.appendChild(num);
+      item.addEventListener('click', function () {
+        var idx = parseInt(this.dataset.index, 10);
+        closeOverview();
+        setTimeout(function () { showSlide(idx); }, 50);
+      });
+      track.appendChild(item);
+    });
+    scrollOverviewToFocus();
+  }
+  function scrollOverviewToFocus() {
+    var track = document.getElementById('overview-track');
+    var items = track.querySelectorAll('.overview-item');
+    if (items[overviewFocus]) {
+      var el = items[overviewFocus];
+      track.scrollLeft = el.offsetLeft - track.offsetWidth / 2 + el.offsetWidth / 2;
+    }
+  }
+  function updateOverviewFocus(idx) {
+    overviewFocus = idx;
+    var items = document.querySelectorAll('#overview-track .overview-item');
+    items.forEach(function (el, i) { el.classList.toggle('overview-focus', i === idx); });
+    scrollOverviewToFocus();
+  }
+  function updateControlFocus(i) {
+    overviewControlFocus = i;
+    document.querySelectorAll('#overview-controls [data-ctrl]').forEach(function (el) {
+      el.classList.toggle('control-focus', parseInt(el.dataset.ctrl, 10) === i);
+    });
+  }
+  function setOverviewSection(s) {
+    overviewSection = s;
+    if (s === 'controls') {
+      updateControlFocus(overviewControlFocus || 0);
+      document.querySelectorAll('#overview-track .overview-item').forEach(function (el) { el.classList.remove('overview-focus'); });
+    } else {
+      document.querySelectorAll('#overview-controls [data-ctrl]').forEach(function (el) { el.classList.remove('control-focus'); });
+      updateOverviewFocus(overviewFocus);
+    }
+  }
+  function openOverview() {
+    overviewOpen = true;
+    overviewFocus = currentSlide;
+    overviewSection = 'thumbs';
+    buildOverview();
+    document.getElementById('overview-panel').classList.add('open');
+    scaleSlides();
+  }
+  function closeOverview() {
+    overviewOpen = false;
+    document.getElementById('overview-panel').classList.remove('open');
+    document.querySelectorAll('#overview-controls [data-ctrl]').forEach(function (el) { el.classList.remove('control-focus'); });
+    scaleSlides();
+  }
+  window.openOverview = openOverview; window.closeOverview = closeOverview;
+
+  // ===== Scale slides to viewport =====
+  function scaleSlides() {
+    var wrapper = document.getElementById('slidesWrapper');
+    var availH = window.innerHeight - (overviewOpen ? OVERVIEW_H : 0);
+    var scale = Math.min(window.innerWidth / 2040, availH / 1080);
+    var offsetX = (window.innerWidth - 2040 * scale) / 2;
+    var offsetY = (availH - 1080 * scale) / 2;
+    wrapper.style.transform = 'translate(' + offsetX + 'px, ' + offsetY + 'px) scale(' + scale + ')';
+  }
+  window.addEventListener('resize', scaleSlides);
+
+  // ===== Keyboard =====
+  document.addEventListener('keydown', function (e) {
+    if (!overviewOpen && e.key === 'ArrowUp') { e.preventDefault(); openOverview(); return; }
+    if (overviewOpen) {
+      if (overviewSection === 'controls') {
+        var CTRL_MAX = 3; var onFontRow = overviewControlFocus === 2;
+        if (e.key === 'ArrowRight') { e.preventDefault(); if (onFontRow) adjustFontScale(0.1); else setOverviewSection('thumbs'); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); if (onFontRow) adjustFontScale(-0.1); }
+        else if (e.key === 'ArrowDown') { e.preventDefault(); if (overviewControlFocus < CTRL_MAX) updateControlFocus(overviewControlFocus + 1); else closeOverview(); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); if (overviewControlFocus > 0) updateControlFocus(overviewControlFocus - 1); }
+        else if (e.key === 'Enter') { e.preventDefault(); if (!onFontRow) { var btn = document.querySelector('#overview-controls button[data-ctrl="' + overviewControlFocus + '"]'); if (btn) btn.click(); } }
+        else if (e.key === 'Escape') { e.preventDefault(); closeOverview(); }
+      } else {
+        if (e.key === 'ArrowRight') { e.preventDefault(); overviewFocus = Math.min(overviewFocus + 1, slides.length - 1); updateOverviewFocus(overviewFocus); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); if (overviewFocus === 0) setOverviewSection('controls'); else { overviewFocus--; updateOverviewFocus(overviewFocus); } }
+        else if (e.key === 'ArrowDown') { e.preventDefault(); closeOverview(); }
+        else if (e.key === 'Enter') { e.preventDefault(); var idx = overviewFocus; closeOverview(); setTimeout(function () { showSlide(idx); }, 50); }
+        else if (e.key === 'Escape') { e.preventDefault(); closeOverview(); }
+      }
+    } else {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); nextSlide(); }
+      if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); prevSlide(); }
+      if (e.key === 'Home') { e.preventDefault(); showSlide(0); }
+      if (e.key === 'End') { e.preventDefault(); showSlide(total - 1); }
+      if (e.key === 't' || e.key === 'T') { cycleTheme(); }
+    }
+  });
+
+  // ===== Touch =====
+  var touchStartX = 0;
+  document.addEventListener('touchstart', function (e) { touchStartX = e.changedTouches[0].screenX; });
+  document.addEventListener('touchend', function (e) {
+    var diff = touchStartX - e.changedTouches[0].screenX;
+    if (Math.abs(diff) > 50 && !overviewOpen) { diff > 0 ? nextSlide() : prevSlide(); }
+  });
+
+  // ===== Init =====
+  scaleSlides();
+  showSlide(0);
+</script>
+</body>
+</html>
