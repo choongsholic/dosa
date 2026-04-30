@@ -194,17 +194,18 @@ A. 마스터는 스킬 폴더 (`~/.claude/skills/dosa/fonts/`). 사본은 작업
 
 ---
 
-## 11. 다른 사람과 공유
+## 11. 다환경 동기화 (집 / 회사)
 
-도사 스킬을 공유하려면 `~/.claude/skills/dosa/` 폴더 통째로 zip:
+도사는 `choongsholic/dosa` GitHub 레포로 추적되어 여러 컴퓨터 간 동기화한다. 한쪽에서 가이드 수정하거나 새 톤 추가하면 다른 쪽에서 풀로 받아오면 됨.
 
-**보내는 쪽**:
-```bash
-cd ~/.claude/skills && zip -r dosa-skill.zip dosa
-```
+**트리거** (어느 working dir에서나):
+- **"도사 푸시"** → 변경사항 add+commit+push
+- **"도사 풀"** → 다른 환경에서 변경분 받아오기
 
-**받는 쪽**:
-1. zip 풀어서 `dosa/` 폴더를 본인 `~/.claude/skills/` 안으로 이동
-2. Claude Code에서 `/dosa` 호출 — 첫 호출 시 도사가 작업 공간 위치를 묻고 자동 셋업
+**새 컴퓨터 첫 셋업**:
+1. 터미널에서 `git clone https://github.com/choongsholic/dosa ~/.claude/skills/dosa`
+2. Claude Code에서 `/dosa` 호출 — 첫 호출 시 도사가 작업 공간 위치 묻고 fonts/ 자동 복사
 
-스킬 폴더 자체에 룰·가이드·폰트·베이스 HTML이 다 들어있어서 받는 사람이 추가로 받을 게 없다.
+스킬 폴더 자체에 룰·가이드·폰트·베이스 HTML이 다 들어있어서 추가로 받을 게 없다.
+
+**작업물(`<DOSA-ROOT>/<work-name>/`)은 동기화 X** — 본인 컴퓨터에만 살아남. 동기화되는 건 스킬 자체(룰·디자인 가이드·자산)만.

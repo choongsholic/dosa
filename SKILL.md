@@ -91,22 +91,20 @@ description: 노션·구글독스 등 정리된 텍스트를 받아 디자인 �
 
 ---
 
-## 공유 / 받는 사람 셋업
+## 다환경 동기화 (집 / 회사)
 
-본 스킬은 `~/.claude/skills/dosa/` 폴더 통째로 공유 가능. zip 안에 모든 게 들어있다 (가이드·룰·폰트·베이스 HTML).
+본 스킬은 `choongsholic/dosa` GitHub 레포로 추적되어 여러 컴퓨터 간 동기화. 트리거:
+- **"도사 푸시"** → 변경사항 add+commit+push
+- **"도사 풀"** → 다른 환경에서 받아오기
 
-**받는 사람 셋업** (1회):
-1. zip 파일 받아서 압축 풀기
-2. 풀어진 `dosa/` 폴더를 본인의 `~/.claude/skills/` 안으로 이동
-3. Claude Code에서 `/dosa` 호출 — 첫 호출 시 도사가 작업 공간 위치를 묻고 자동 셋업 (fonts/ 복사 포함)
+**새 환경에서 첫 셋업**:
+1. `git clone https://github.com/choongsholic/dosa ~/.claude/skills/dosa`
+2. Claude Code에서 `/dosa` 호출 — 첫 호출 시 도사가 작업 공간 위치 묻고 fonts/ 자동 복사
 
 폴더 구성:
 ```
 ~/.claude/skills/dosa/
-├── SKILL.md            # 스킬 본체 (호출 시 로드)
-├── dosa.md             # 변환 원칙
-├── design.md           # 디자인 시스템 가이드
-├── guide.md            # 사용자 이용 가이드
+├── SKILL.md / dosa.md / design.md / guide.md / CLAUDE.md
 ├── fonts/              # 표준 폰트 마스터 (You&I + SF Pro)
 └── aqua-dashboard/     # 베이스 HTML + 학습 산출물 (참고)
 ```
