@@ -179,11 +179,14 @@ A. 마스터는 스킬 폴더 (`~/.claude/skills/dosa/fonts/`). 사본은 작업
 ├── guide.md                  # 본 문서 (이용 가이드)
 ├── dosa.md                   # 변환 원칙
 ├── design.md                 # 디자인 시스템 가이드
-├── contenteditable-traps.md  # 편집 인터랙션 함정 (개발 참고)
-├── ix-block-traps.md         # 이미지 컴포넌트 함정 (개발 참고)
-├── export-traps.md           # 굽기/내보내기 함정 (개발 참고)
+├── traps/                    # 시행착오 노트 (개발 참고)
+│   ├── contenteditable.md    # 편집 인터랙션·IME·캐시 함정
+│   ├── export.md             # 굽기/내보내기 함정
+│   ├── ix-block.md           # 이미지 컴포넌트 함정
+│   ├── dashboard-layout.md   # 슬라이드 레이아웃·z-index·다크모드
+│   └── transition.md         # 트랜지션·element 상태 함정
 ├── fonts/                    # 표준 폰트 마스터 (You&I + SF Pro)
-└── aqua-dashboard/           # 베이스 HTML (dashboard.html)
+└── aqua-dashboard/           # 베이스 HTML (dashboard.html) + table-system.md
 ```
 
 **작업 공간** (예: `~/Documents/DOSA/`) — 사용자가 만든 작업물 누적:

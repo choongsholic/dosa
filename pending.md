@@ -42,9 +42,9 @@ dosa 폴더에서 시작했지만 다른 환경(다른 컴, 외부 서비스 등
 
 5. **문서 업데이트**
    - `dosa.md` 7.2 (내보내기) 섹션에 "폰트는 외부 호스팅으로 자동 swap (`<발급-URL>`)" 한 줄 박기
-   - `export-traps.md` 5번 코드 예시의 placeholder URL을 실제 URL로 교체
+   - `traps/export.md` 5번 코드 예시의 placeholder URL을 실제 URL로 교체
    - 본 `pending.md` 에서 본 항목 제거
 
 **참고**:
-- 자세한 폰트 swap 패턴 + 트레이드오프(인터넷 의존, base64 인라인 대안)는 `export-traps.md` 5번 참고
+- 자세한 폰트 swap 패턴 + 트레이드오프(인터넷 의존, base64 인라인 대안)는 `traps/export.md` 5번 참고
 - Netlify Drop은 회원가입 없이도 배포 가능, 발급된 도메인은 영구 무료

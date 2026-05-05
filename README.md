@@ -22,12 +22,16 @@ dosa/
 ├── dosa.md                   # 변환 원칙 (페이지 분할·카드/표 선택·간지 운용)
 ├── design.md                 # 디자인 시스템 (컴포넌트·색상·폰트·라벨)
 ├── pending.md                # 보류/다음 진행 작업 추적
-├── contenteditable-traps.md  # 편집 인터랙션 함정
-├── ix-block-traps.md         # 이미지 컴포넌트 함정
-├── export-traps.md           # 굽기/내보내기 함정
+├── traps/                    # 시행착오 노트 (작업 중 펼쳐 볼 것)
+│   ├── contenteditable.md    # 편집 인터랙션·IME·캐시 함정
+│   ├── export.md             # 굽기/내보내기 함정
+│   ├── ix-block.md           # 이미지 컴포넌트 함정
+│   ├── dashboard-layout.md   # 슬라이드 레이아웃·z-index·다크모드 함정
+│   └── transition.md         # 트랜지션·element 상태 함정
 ├── fonts/                    # 표준 폰트 (You&I + SF Pro)
 └── aqua-dashboard/
-    └── dashboard.html        # 베이스 HTML (샘플이자 첫 참고 자료)
+    ├── dashboard.html        # 베이스 HTML (샘플이자 첫 참고 자료)
+    └── table-system.md       # xt 테이블 시스템 구현 노트
 ```
 
 ## 동기화 트리거 (CLAUDE.md)

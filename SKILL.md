@@ -19,6 +19,13 @@ description: 정리된 자료(텍스트·노션·PDF·문서 드래프트 이미
 
 두 문서를 모두 읽고 **이번 변환에 적용할 룰을 머릿속에 펼친 뒤** 변환 시작.
 
+추가로 작업 중 함정에 부딪히면 `traps/` 폴더 안 관련 노트 펼쳐 볼 것:
+- `traps/contenteditable.md` — 인라인 편집·IME·trailing 청소·캐시 함정
+- `traps/export.md` — 굽기 / 내보내기 / 공유 모드 함정
+- `traps/ix-block.md` — 이미지 블록(ix-block) 통합 함정
+- `traps/dashboard-layout.md` — 슬라이드 탑/미드/봇 레이아웃·z-index·다크모드 토큰
+- `traps/transition.md` — 리스트 추가/제거 트랜지션·element 상태 변동성
+
 ### 3. 작업 공간 셋업 확인 (첫 호출 시 1회만)
 
 작업 공간 = 사용자가 만든 작업물(보고서 HTML들)이 쌓이는 폴더.

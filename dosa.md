@@ -15,11 +15,15 @@
 ├── dosa.md                     # 본 문서 (변환 원칙)
 ├── design.md                   # 디자인 시스템 가이드
 ├── guide.md                    # 사용자 이용 가이드
-├── contenteditable-traps.md    # contenteditable 함정 모음 (편집 인터랙션 작성 시 참고)
-├── ix-block-traps.md           # ix-block 슬라이드 통합 함정 (이미지 컴포넌트 작성 시 참고)
-├── export-traps.md             # 굽기 / 내보내기 / 공유 모드 함정 (export 흐름 작성 시 참고)
+├── traps/                      # 시행착오 노트 (작업 중 상황 만나면 펼쳐 볼 것)
+│   ├── contenteditable.md      # contenteditable 함정 (편집 인터랙션)
+│   ├── export.md               # 굽기 / 내보내기 / 공유 모드 함정
+│   ├── ix-block.md             # ix-block 슬라이드 통합 함정 (이미지 컴포넌트)
+│   ├── dashboard-layout.md     # 슬라이드 레이아웃·z-index·다크모드 함정
+│   └── transition.md           # 트랜지션·리스트 추가/제거·element 상태 함정
 ├── fonts/                      # 표준 폰트 마스터 (You&I + SF Pro)
 └── aqua-dashboard/             # 베이스 HTML + 학습 산출물 (참고)
+    └── table-system.md         # xt 테이블 시스템 구현 노트 (재사용 패턴)
 ```
 
 **작업 공간** (예: `~/Documents/DOSA/`) — 사용자가 만든 작업물 누적:
@@ -112,6 +116,24 @@
 
 원본에 두 가지 표기·용어가 일부러 공존하면 그대로 보존. 다만 **새 문서로 시작할 땐 통일**.
 
+### 3.9 이미지는 base64 인라인 (외부 src 참조 금지)
+
+요건서/원본 자료에 폴더 이미지가 첨부되어 있으면, HTML 마크업에서 `src="imgs/foo.png"` 같은 외부 경로 참조 대신 **base64 data URL**(`src="data:image/png;base64,..."`)로 변환해서 HTML 안에 직접 박을 것.
+
+**이유**: 단일 HTML로 완전 self-contained돼야 "진짜" 작업물. 외부 폴더 의존하면 파일 옮길 때 이미지 깨짐.
+
+**적용**:
+- 도사 신규 슬라이드 생성 시 image src 항상 base64 인라인
+- HTML 사이즈 부담은 감수 (이미지 11개 ~2.5MB → HTML ~3.9MB 사례 있음)
+- 사용자가 placeholder에 직접 업로드한 이미지는 IndexedDB에 저장됨(별도) — 인라인 룰은 마크업에 사전 박힌 이미지에만 적용
+
+```python
+import base64
+with open(path, 'rb') as f:
+    b64 = base64.b64encode(f.read()).decode('ascii')
+src = f'data:image/png;base64,{b64}'
+```
+
 ---
 
 ## 4. 새 디자인 톤 추가
@@ -172,4 +194,4 @@
 
 - 청소 selector는 `[contenteditable]` (값 무관 모두) — `[contenteditable="true"]`만 잡으면 plaintext-only가 살아남음
 - 굽기 함수 코드 수정 후 사용자에게 안내: **탭 닫고 새로 열기** → 굽기. 옛 함수가 메모리에 남아있을 수 있음
-- 자세한 함정은 `export-traps.md` 참고
+- 자세한 함정은 `traps/export.md` 참고

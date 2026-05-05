@@ -313,7 +313,26 @@ li.addEventListener('keydown', function (e) {
 
 ---
 
-## 13. inline `font-size` + EDIT_KEY 락 — cmd+arrow가 안 먹는 원인
+## 13. 인라인 편집 캐시(localStorage)가 외부 CSS를 덮어씀 — `!important`로 즉시 우회
+
+**증상**: dashboard.html에서 일반 CSS 룰 변경이 시각적으로 적용 안 됨. 코드는 분명히 바꿨는데 브라우저가 옛 색·라운드를 그대로 보여줌.
+
+**원인**: 이 파일은 인라인 편집 시스템(`dashboard-edits-v3` localStorage)을 쓰는데, 편집 시 브라우저 contenteditable이 자동으로 `style="color:..." / "border-radius:..."` 같은 인라인 스타일을 innerHTML에 박아넣고 저장한다. 페이지 로드 시 `applyStoredEdits()`가 stale innerHTML을 복원 → 인라인 style이 외부 CSS를 이김 → "분명 CSS 바꿨는데 안 바뀐다" 현상.
+
+**해결**:
+1. 사용자가 "안 바뀐다" / "왜 안 되냐" 신호 보내면 즉시 `!important` 추가하고 셀렉터 범위도 넓혀라
+   ```css
+   .cover-title, .cover-title * { color: var(--text) !important; }
+   ```
+2. 처음 한 번만 일반 CSS로 시도하고, 실패 보고 들어오면 추측·진단 길게 늘어놓지 말고 바로 `!important`
+3. localStorage 초기화 안내(`localStorage.removeItem('dashboard-edits-v3')`)는 차선책 — 사용자의 누적 인라인 편집을 날리므로 마지막 수단
+4. 새 dashboard.html 컴포넌트 만들 때부터 `!important`를 디폴트로 넣지는 말 것 (다른 페이지에선 일반 CSS로 충분)
+
+**왜 중요한가**: 사용자가 cover-title accent 색 / badge-discuss border-radius 변경 시 여러 차례 막혀 큰 좌절 경험. `!important`로 풀자마자 "드디어 바뀐다" 반응. 진단 길게 끌지 말고 빠른 우회가 정석.
+
+---
+
+## 14. inline `font-size` + EDIT_KEY 락 — cmd+arrow가 안 먹는 원인
 
 **증상**: 특정 element만 cmd+↑/↓ 폰트 사이즈 조절이 즉시 변하다가 새로고침하면 원래대로 돌아옴. 또는 아예 안 변하는 것처럼 보임.
 
