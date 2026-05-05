@@ -6,7 +6,10 @@
 
 - **"도사"** → 본 폴더에서 작업 맥락 파악 (가이드 .md 변경분, 베이스 HTML 상태 등). `pending.md` 있으면 보류 작업 한 줄 보고.
 - **"도사 푸시"** → `~/.claude/skills/dosa/`에서 git add + commit + push (3단계 한꺼번에). 커밋 메시지는 변경 내용 한 줄로.
-- **"도사 풀"** → `~/.claude/skills/dosa/`에서 git pull로 최신 받기 → 풀 완료 후 **`pending.md` 확인**해서 보류 작업이 있으면 사용자에게 즉시 알릴 것 (다른 환경에서 진행하기로 한 작업이라 풀한 환경이 그 환경일 수 있음).
+- **"도사 풀"** → `~/.claude/skills/dosa/` 폴더 존재 자동 분기:
+  - **폴더 있으면** → 그 폴더에서 `git pull`로 최신 받기
+  - **폴더 없으면(처음 셋업)** → `git clone https://github.com/choongsholic/dosa.git ~/.claude/skills/dosa` 실행
+  - 둘 다 완료 후 **`pending.md` 확인**해서 보류 작업이 있으면 사용자에게 즉시 알릴 것 (다른 환경에서 진행하기로 한 작업이라 풀한 환경이 그 환경일 수 있음).
 
 ## 작업 폴더와 분리
 
