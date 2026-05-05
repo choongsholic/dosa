@@ -8,18 +8,21 @@
 
 ## 1. 폴더 구조
 
-**스킬 폴더** (`~/.claude/skills/dosa/`) — 변환 룰·가이드·자산. zip으로 공유:
+**스킬 폴더** (`~/.claude/skills/dosa/`) — 변환 룰·가이드·자산:
 ```
 ~/.claude/skills/dosa/
-├── SKILL.md            # 스킬 본체 (호출 시 로드)
-├── dosa.md             # 본 문서 (변환 원칙)
-├── design.md           # 디자인 시스템 가이드
-├── guide.md            # 사용자 이용 가이드
-├── fonts/              # 표준 폰트 마스터 (You&I + SF Pro)
-└── aqua-dashboard/     # 베이스 HTML + 학습 산출물 (참고)
+├── SKILL.md                    # 스킬 본체 (호출 시 로드)
+├── dosa.md                     # 본 문서 (변환 원칙)
+├── design.md                   # 디자인 시스템 가이드
+├── guide.md                    # 사용자 이용 가이드
+├── contenteditable-traps.md    # contenteditable 함정 모음 (편집 인터랙션 작성 시 참고)
+├── ix-block-traps.md           # ix-block 슬라이드 통합 함정 (이미지 컴포넌트 작성 시 참고)
+├── export-traps.md             # 굽기 / 내보내기 / 공유 모드 함정 (export 흐름 작성 시 참고)
+├── fonts/                      # 표준 폰트 마스터 (You&I + SF Pro)
+└── aqua-dashboard/             # 베이스 HTML + 학습 산출물 (참고)
 ```
 
-**작업 공간** (예: `~/Documents/DOSA/` — 받는 사람마다 위치 다름) — 사용자가 만든 작업물 누적:
+**작업 공간** (예: `~/Documents/DOSA/`) — 사용자가 만든 작업물 누적:
 ```
 <DOSA-ROOT>/
 ├── fonts/              # fonts 사본 (도사가 첫 호출 시 스킬에서 복사)
@@ -29,6 +32,8 @@
 ```
 
 작업물 폴더명은 짧고 구체적으로 (예: `aqua-dashboard`, `mau-800m`). 평평하게 시작하고 5개 이상이면 `archive/`로 묶기.
+
+> **중요**: 스킬 폴더 안 `aqua-dashboard/dashboard.html`은 **샘플이자 첫 참고 자료**다. 새 변환 시 도사는 이 샘플 + 작업 공간에 누적된 작업물들의 패턴(레이아웃 선택·카드 vs 표·간지 운용·타이포 위계)을 학습/참고해 새 문서에 반영한다. 즉 베이스 HTML은 빈 템플릿이 아니라 **본인이 만들어온 작업 패턴의 살아있는 라이브러리**. 작업물이 누적될수록 참고 풀이 풍부해지는 구조다.
 
 ---
 
@@ -140,3 +145,31 @@
 폰트 마스터는 `~/.claude/skills/dosa/fonts/`. 작업 공간(`<DOSA-ROOT>/fonts/`)에 사본을 두고 작업물 HTML이 `../fonts/` 상대 경로로 참조한다 (도사가 첫 호출 시 자동 복사).
 
 새 디자인 톤을 추가할 때도 위 두 폰트 베이스 권장. 다른 폰트가 필요하면 추가하되 표준은 유지.
+
+---
+
+## 7. Export 운영 — 굽기 / 내보내기
+
+도사 베이스 HTML은 두 export 흐름을 갖는다. 새 디자인 톤·새 베이스 만들 때도 같은 두 흐름을 박을 것.
+
+### 7.1 굽기 (export, 작업본)
+
+- 사용자가 브라우저에서 편집한 콘텐츠(텍스트/이미지/슬라이드 순서)를 베이스 HTML 자체에 박음
+- 결과 파일을 베이스 HTML(`dashboard.html`) 위에 **덮어쓰기**
+- 편집 인터랙션 **유지** — 다음에 이어서 편집 가능
+- localStorage·IndexedDB는 브라우저별이라 깃헙 동기화 안 됨 → 콘텐츠 동기화는 굽기로만 가능
+- 깃헙 푸시 전 항상 굽기 필요
+
+### 7.2 내보내기 (export-share, 공유본)
+
+- 외부 공유용 정적 HTML
+- 파일명에 **`-export` 접미사** (예: `dashboard-export.html`)
+- 편집 트리거 통째 제거 → 받는 사람은 보기·네비만 가능 (전체화면·테마·폰트는 유지)
+- root html에 `share-mode` 클래스 박아 동적 빌드 함수도 분기
+- 폰트는 외부 호스팅(예: Netlify)으로 자동 swap (받는 사람이 fonts/ 폴더 없어도 OK)
+
+### 7.3 함수 수정 시 주의
+
+- 청소 selector는 `[contenteditable]` (값 무관 모두) — `[contenteditable="true"]`만 잡으면 plaintext-only가 살아남음
+- 굽기 함수 코드 수정 후 사용자에게 안내: **탭 닫고 새로 열기** → 굽기. 옛 함수가 메모리에 남아있을 수 있음
+- 자세한 함정은 `export-traps.md` 참고

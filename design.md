@@ -15,30 +15,54 @@
 
 ## 2. 디자인 토큰 (CSS 변수)
 
-### 색상 (다크 테마 기본값)
-```
---bg: #080808            /* 슬라이드 배경 */
---surface: #141414       /* 카드/박스 배경 */
---surface-2: #1a1a1a     /* 카드 호버 등 */
---text: rgba(255,255,255,0.92)
---text-secondary: rgba(255,255,255,0.42)
---border: rgba(255,255,255,0.10)
---accent: #00D56D        /* 그린 (포인트) */
---accent-secondary: #FF0238  /* 레드 (네거티브) */
---soft-fill: rgba(255,255,255,0.06)  /* 그레이 면 */
---invert-bg: #000        /* 반전 헤더 (검정) */
---invert-text: #fff      /* 반전 헤더 텍스트 */
---discuss: #d33a3a       /* "논의 필요" 빨간 라벨 */
+### 핵심 룰 — 7개 토큰이 단일 출처
+
+**규칙**: 포인트 컬러 5개와 검정/흰색 2개, **이 7개 hex만이 정의된 색상**. 그 외 모든 회색·배경·테두리·소프트 면은 검정 또는 흰색의 알파 파생(`color-mix(in srgb, var(--tc-*) N%, transparent)`)이어야 함. Tailwind 팔레트나 별도 hex 박지 말 것.
+
+```css
+:root {
+  /* 단일 출처 — 이 값들만 바꾸면 전체 톤이 따라옴 */
+  --tc-black: #000000;
+  --tc-white: #ffffff;
+  --tc-blue:   #1d72e8;
+  --tc-green:  #00b85e;
+  --tc-red:    #FF0238;
+  --tc-orange: #d97a6c;
+  --tc-yellow: #FFC300;
+}
 ```
 
-### 라이트 테마 (자동 반전)
+### 모드 토큰 — 모두 위 7개에서 파생
+
+라이트 모드:
+```css
+html.theme-light {
+  --bg:       color-mix(in srgb, var(--tc-black) 4%, var(--tc-white));
+  --surface:  var(--tc-white);
+  --surface-2:color-mix(in srgb, var(--tc-black) 2%, var(--tc-white));
+  --surface-hover: color-mix(in srgb, var(--tc-black) 8%, var(--tc-white));
+  --border:        color-mix(in srgb, var(--tc-black) 12%, transparent);
+  --border-strong: color-mix(in srgb, var(--tc-black) 28%, transparent);
+  --text:          var(--tc-black);
+  --text-secondary:color-mix(in srgb, var(--tc-black) 60%, transparent);
+  --soft-fill:     color-mix(in srgb, var(--tc-black) 7%, transparent);
+  --invert-bg:     var(--tc-black);
+  --invert-text:   var(--tc-white);
+  --accent:    var(--tc-green);
+  --negative:  var(--tc-red);
+  --discuss:   var(--tc-red);
+  --warning:   var(--tc-orange);
+}
 ```
---bg: #F5F5F3
---surface: #FFFFFF
---text: #111
---accent: #00b85e
---invert-bg: #000        /* 검정+흰 글자 그대로 (강조용) */
-```
+
+다크 모드(`html.theme-dark`)는 검정/흰색을 반대로 alpha-mix.
+
+### 본문 / 컴포넌트에서 색 쓰는 법
+
+- 본문 텍스트: `color: var(--text)` (검정 100%) / `color: var(--text-secondary)` (검정 60% — 보조 캡션·노트)
+- 강조 행/카드 배경: `background: color-mix(in srgb, var(--tc-yellow) 8%, transparent)` (옐로우 8% 톤)
+- 별표·아이콘 포인트: `color: var(--tc-orange)` 등 직접 토큰 참조
+- **포인트 컬러를 쓸 땐 반드시 `var(--tc-*)`** — `#FF0238` 같은 hex 직접 박지 말 것
 
 ### 폰트 패밀리
 - 본문/UI/숫자: `'SFProDisplay', sans-serif`
@@ -222,16 +246,28 @@
 
 ### 4.7 대시보드 이미지 (참고 화면)
 
+> **이미지 인라인 룰 (필수)**
+> 요건서에 폴더 이미지가 첨부되어 있으면 외부 경로 참조(`src="imgs/foo.png"`)가 아니라 **base64 data URL**로 HTML에 직접 박을 것. 단일 HTML로 self-contained되게 — 파일 옮길 때 깨지지 않도록.
+>
+> ```python
+> import base64
+> with open(path, 'rb') as f:
+>     b64 = base64.b64encode(f.read()).decode('ascii')
+> src = f'data:image/png;base64,{b64}'
+> ```
+>
+> 결과 마크업: `<img src="data:image/png;base64,iVBORw0KGgo...">`
+
 ```html
 <div class="dash-wrap animate delay-3">
-  <img src="imgs/img_3.png" alt="...">
+  <img src="data:image/png;base64,..." alt="...">
 </div>
 <p class="dash-cap animate delay-4">ex) 이미지 캡션</p>
 
 <!-- 좌우 분할 (이미지 + 캡션) -->
 <div class="dash-split">
   <div class="dash-side-img">
-    <img src="...">
+    <img src="data:image/png;base64,...">
     <p class="dash-cap">캡션</p>
   </div>
   <div class="dash-text">설명 텍스트</div>
@@ -665,8 +701,129 @@ UX Insight팀
 
 ---
 
+## 17. 텍스트 서식 popover (인라인 편집 도구)
+
+### 트리거
+- 편집 가능 영역(`.editable[contenteditable="plaintext-only"]` 또는 `[contenteditable="true"]`)에서 텍스트를 **드래그 → mouseup** 시 popover 등장
+- Cmd+A / Shift+화살표 같은 키보드 선택도 selectionchange로 80ms debounce 후 popover
+- selection이 collapse되거나 popover 외부 클릭 시 자동 hide
+
+### 구성 (좌→우)
+```
+┌──────────────────────────────────────────────────┐
+│ [알파 ━━━━●━━━ 100 %]              [⫷ ⫶ ⫸] │  ← 알파 row + 정렬
+│ [SF/Y&I] | ⚫⚪ 🔵🟢🔴🟠🟡 |   🔗 링크         │  ← 폰트/색상/링크
+└──────────────────────────────────────────────────┘
+```
+
+### 색상 swatch
+- 7개: `default`(검정 모드자동) / `inverse`(흰색 모드자동) / `blue` / `green` / `red` / `orange` / `yellow`
+- 모두 `var(--tc-*)` 토큰 참조 — 토큰 hex 바꾸면 swatch + 본문 적용분 동시 갱신
+- swatch bg는 popover에서 런타임 `getComputedStyle`로 읽어 detection에 사용
+
+### 알파
+- 색상 클릭 시 알파 row 활성화 (슬라이더 + 숫자 0~100%)
+- 키보드: 슬라이더 focus 상태에서 ↑↓ ±1, Shift+↑↓ ±10
+- ←→는 native 슬라이더에 맡기되 슬라이드 네비/오버뷰 트리거되지 않게 stopPropagation
+- 색 다른 색으로 재클릭 시 기존 알파 보존
+
+### Wrapper 구조 (DOM)
+```html
+<!-- 색 + 알파 (CSS 변수 --a 사용) -->
+<span class="t-c" data-c="orange" style="--a:0.6">텍스트</span>
+
+<!-- 폰트 토글 -->
+<span class="t-f" data-f="sf">SF Pro 텍스트</span>
+<span class="t-f" data-f="yi">Y&I 텍스트</span>
+```
+
+CSS:
+```css
+.t-c { color: color-mix(in srgb, var(--t-c-base, currentColor) calc(var(--a, 1) * 100%), transparent); }
+.t-c[data-c="default"] { --t-c-base: var(--text); }
+.t-c[data-c="inverse"] { --t-c-base: var(--invert-text); }
+.t-c[data-c="blue"]    { --t-c-base: var(--tc-blue); }
+.t-c[data-c="green"]   { --t-c-base: var(--tc-green); }
+.t-c[data-c="red"]     { --t-c-base: var(--tc-red); }
+.t-c[data-c="orange"]  { --t-c-base: var(--tc-orange); }
+.t-c[data-c="yellow"]  { --t-c-base: var(--tc-yellow); }
+```
+
+### Detection (popover 등장 시 자동 동기화)
+- `.t-c` 래퍼 안 → swatch active + 알파 슬라이더에 매핑
+- 래퍼 없이 CSS 컬러(예: `var(--text-secondary)` = `color(srgb 0 0 0 / 0.6)`)일 때도 computed color 분석 → 가장 가까운 swatch + 알파 역산
+- 다중 색상/알파일 때 → swatch 모두 비활성, 알파 row 비활성. 색 재클릭하면 기존 t-c 모두 unwrap 후 일괄 wrap
+- 폰트 자동 감지: `.t-f` 래퍼 또는 computed `font-family`에 'youandi' 포함 여부로 토글 라벨 갱신
+- **컬러 파싱은 `rgb()`, `rgba()`, `rgb(r g b / a)`, `color(srgb r g b / a)` 모두 지원** (Chrome의 `color-mix()` 결과는 `color(srgb ...)` 반환)
+
+### 링크
+- 표기: 본문 색 유지 + `text-decoration: underline 1.5px / offset 3px`
+- 클릭: capture phase에서 가로채서 `window.open(href, '_blank', 'noopener')` (편집 모드 무관)
+- 호버: mini-popup으로 URL + 편집/제거 버튼 (220ms hide debounce)
+- 링크 버튼: 선택이 이미 link 안이면 라벨이 "🔗 편집/제거"로 토글, 비어있는 URL 입력 = 제거
+
+### 정렬
+- 좌/중/우 정렬 — `getBlockEditable(node)`로 가장 가까운 editable에 `style.textAlign` 직접 설정
+- popover 등장 시 현재 정렬 자동 감지하여 active 버튼 표시
+- 저장: `saveBulletsForSlide`가 li의 inline `style.height`/`style.minHeight`만 선택 클리어 (textAlign 보존)
+
+### 부가 기능
+- **선택 하이라이트 보존**: popover input(slider/number)에 focus 가서 native selection이 collapse되어도 `.t-fake-hl` 오버레이로 시각적 하이라이트 유지 (`range.getClientRects()` × `position: fixed`)
+- **Format undo/redo**: 색/폰트/링크 변경 직전 `editable.innerHTML` 스냅샷 stack. Cmd+Z / Cmd+Shift+Z
+
+### 추가 시 주의사항 (도사가 새 슬라이드 만들 때)
+- 본문 텍스트는 `var(--text)` / `var(--text-secondary)` 사용 (토큰 자동 매핑됨)
+- 강조용 인라인 색은 `<span class="t-c" data-c="green">` 같은 래퍼 사용 (또는 사용자가 popover로 적용)
+- HTML `<font color="...">` 같은 deprecated 태그 ❌ — `<span class="t-c" data-c="...">` ✓
+- 직접 hex 박지 말고 토큰 참조
+
+---
+
 ## 16. 변경 이력 / 가이드 적용 규칙
 
-이 가이드는 dashboard.html v0.8 (2026-04-28) 기준 + 도사 학습 누적 (2026-04-30). 디자인 토큰이나 컴포넌트가 바뀌면 이 문서도 같이 업데이트할 것.
+이 가이드는 dashboard.html v0.8 (2026-04-28) 기준 + 도사 학습 누적 (2026-04-30) + new2-dashboard.html 표준화 (2026-05-04). 디자인 토큰이나 컴포넌트가 바뀌면 이 문서도 같이 업데이트할 것.
 
 **Claude(도사)에게 새 보고서 요청 시 이 문서 + `dosa.md`(공통 변환 원칙)를 같이 참조하면 디자인 톤 일관성 확보. 두 파일 모두 `~/.claude/skills/dosa/`에 위치.**
+
+---
+
+## 17. 표준 베이스 = `new2-dashboard.html` (2026-05-04~)
+
+베이스 HTML이 `dashboard.html` → `new2-dashboard.html`로 전환됨. 다음 시스템들이 추가됨:
+
+### xt 테이블 시스템 (Notion-style 인터랙티브 표)
+- **구조**: `.xt-block > .xt-title + .xt-desc + .xt-shell > table.xt > tbody > tr > td.xt-cell`
+- **셀 인터랙션**: 클릭 → 인라인 편집(plaintext-only). 셀 우측 ⋮ 메뉴(정렬/색상/폰트/헤드라인). 다중 선택 드래그.
+- **행/열 추가/삭제/이동**: gap의 + 버튼, 핸들 드래그.
+- **gap 라인 색상**: gap의 + 버튼 → 칼라칩 popover로 행/열 사이 라인 색 토글.
+- **헤드라인 (폰트 그룹)**: 같은 그룹 셀들 폰트 사이즈 동기화. Cmd+↑↓로 그룹 사이즈 조절.
+- **bullet**: 셀 내 `- ` 입력 시 `.xt-bullet-content > .xt-bullet-line[]` 다중 라인 구조로 변환. xt-cell뿐 아니라 xt-title/일반 editable에도 일반화 (단 `.doc-title`과 `<li>`는 제외).
+- **localStorage 영속화**: 셀 텍스트/스타일/구조(rows×cols)/font-size/gap-color 모두 새로고침 후 유지. 키 prefix: `<work>-edits-v3` 등.
+
+### text-format popover (드래그 → mouseup 시 등장)
+- 폰트 토글(SF/Y&I), 색상 swatch, 알파 슬라이더, 가로 정렬(L/C/R), **세로 정렬(top/middle/bottom — 신규)**, 링크
+- 일반 텍스트에서도 popover로 정렬/색상/폰트 변경 시 편집 모드 + popover 유지 (이전엔 셀에서만 가능했음)
+
+### Cmd+B 토글
+- 선택 영역 있을 때: 선택 텍스트 wrap (700 ↔ 500 토글)
+- 선택 없을 때: 엘리먼트 전체 font-weight 700 ↔ 500
+
+### 레이아웃 z-index 룰
+슬라이드 내 stacking 우선순위:
+- **top 영역 (`.doc-bullets`, `.title-add-list`)**: `position: relative; z-index: 3`
+- **mid 영역 hover-control 블록 (`.ix-block`, `.xt-block` 등)**: `position: relative; z-index: 2`
+- **mid 정적 블록 (`.dash-wrap`, `.formula-box`, `.cmp-row` 등 hover 컨트롤 없음)**: 별도 z 불필요
+
+룰:
+- mid 블록에 hover 시 absolute 컨트롤(설정 패널, resize handle, +/− 버튼 등) 띄우는 구조면 정의 시점부터 `position: relative; z-index: 2` 박을 것 — 안 그러면 top 영역(`.animate` stacking context) 또는 다른 콘텐츠가 컨트롤 hit-test 가로챔
+- 반대로 top의 `.doc-bullets`에 ±버튼 4개+면 mid의 z:2가 그 클릭을 가로채는 케이스 있음 → 그래서 doc-bullets에 z:3 필요
+- 새 mid 블록 컴포넌트 추가 시 둘 다 무조건 박아두는 게 안전
+
+### CSS 토큰 변경
+- `--tc-orange`: `#ec9a40` → `#e87742` (red-orange 톤)
+
+### 신규 슬라이드 만들 때 가이드
+- 표는 가능한 한 xt-block으로 (plan-table/seg-table 같은 정적 구조보단 xt 인터랙티브 권장)
+- xt-block 안엔 `.xt-title.editable`, `.xt-cell.editable`만 두고 cell 내용은 텍스트로
+- 페이지가 mid 영역에 들어가면 `.slide-doc.slide-segments > .xt-block`에 `margin: auto` 룰 자동 적용
+- 사용자가 직접 행/열/색/폰트 추가는 인터랙션으로 — 도사는 마크업 초기 상태만 잡아주면 됨

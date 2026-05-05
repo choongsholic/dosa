@@ -42,11 +42,12 @@ description: 노션·구글독스 등 정리된 텍스트를 받아 디자인 �
 - 위치: `<DOSA-ROOT>/<work-name>/` (평평하게. 작업물 5개 넘어가면 `archive/` 도입 검토)
 
 ### 5. 베이스 HTML cp + 슬라이드 교체
-- 베이스 위치: `~/.claude/skills/dosa/aqua-dashboard/dashboard.html` (또는 `dashboard_org.html`)
+- **베이스 위치**: `~/.claude/skills/dosa/aqua-dashboard/dashboard.html` (표준 — xt 테이블 시스템 + popover + bullet 일반화 + ix-block 이미지 + 굽기/내보내기 export 등 모든 인터랙션 탑재)
 - 사용자 작업물 폴더로 cp → `<DOSA-ROOT>/<work>/<work>.html`
-- localStorage 키 rename (`dashboard-` → `<work>-`) — 다른 작업물과 충돌 방지
+- **localStorage 키 rename**: `new3-dashboard-` → `<work>-` 일괄 치환 (다른 작업물과 충돌 방지). `new3-dashboard-migrated-force-v1` 같은 마이그레이션 플래그도 같이 치환됨 — OK
 - 슬라이드 wrapper 안 슬라이드 영역만 새 콘텐츠로 교체. 카운터(slideTotal)는 JS가 자동 계산
 - 폰트 경로(`../fonts/`)는 그대로 — 작업 공간의 fonts/ 사본을 가리킴
+- 이미지는 base64 data URL로 HTML에 직접 인라인 (외부 src 참조 X — 단일 파일로 self-contained 유지)
 
 ### 6. 변환 체크리스트 (저장 전)
 - [ ] 노션 박스 1개 = 슬라이드 1개로 1:1 매핑하지 않았는가 (같은 위계 묶음 = 한 장)
@@ -89,22 +90,3 @@ description: 노션·구글독스 등 정리된 텍스트를 받아 디자인 �
 
 **자세한 변환 룰은 절대 본 문서에 인라인으로 적지 말 것.** 룰의 단일 출처는 `dosa.md` + `design.md` (본 스킬 폴더 안). 룰 변경 시 그쪽만 갱신.
 
----
-
-## 다환경 동기화 (집 / 회사)
-
-본 스킬은 `choongsholic/dosa` GitHub 레포로 추적되어 여러 컴퓨터 간 동기화. 트리거:
-- **"도사 푸시"** → 변경사항 add+commit+push
-- **"도사 풀"** → 다른 환경에서 받아오기
-
-**새 환경에서 첫 셋업**:
-1. `git clone https://github.com/choongsholic/dosa ~/.claude/skills/dosa`
-2. Claude Code에서 `/dosa` 호출 — 첫 호출 시 도사가 작업 공간 위치 묻고 fonts/ 자동 복사
-
-폴더 구성:
-```
-~/.claude/skills/dosa/
-├── SKILL.md / dosa.md / design.md / guide.md / CLAUDE.md
-├── fonts/              # 표준 폰트 마스터 (You&I + SF Pro)
-└── aqua-dashboard/     # 베이스 HTML + 학습 산출물 (참고)
-```
