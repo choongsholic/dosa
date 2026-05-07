@@ -20,10 +20,10 @@
 │   ├── export.md               # 굽기 / 내보내기 / 공유 모드 함정
 │   ├── ix-block.md             # ix-block 슬라이드 통합 함정 (이미지 컴포넌트)
 │   ├── dashboard-layout.md     # 슬라이드 레이아웃·z-index·다크모드 함정
-│   └── transition.md           # 트랜지션·리스트 추가/제거·element 상태 함정
+│   ├── transition.md           # 트랜지션·리스트 추가/제거·element 상태 함정
+│   └── table-system.md         # xt 테이블 시스템 구현 노트 (재사용 패턴)
 ├── fonts/                      # 표준 폰트 마스터 (You&I + SF Pro)
-└── aqua-dashboard/             # 베이스 HTML + 학습 산출물 (참고)
-    └── table-system.md         # xt 테이블 시스템 구현 노트 (재사용 패턴)
+└── aqua-dashboard/             # 베이스 HTML (참고)
 ```
 
 **작업 공간** (예: `~/Documents/DOSA/`) — 사용자가 만든 작업물 누적:

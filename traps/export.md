@@ -56,26 +56,54 @@ item.draggable = !document.documentElement.classList.contains('share-mode');
 
 **룰**: 굽기 함수를 수정한 후 사용자에게 안내할 것 — "탭 닫고 다시 열기 (또는 hard reload) → 굽기". cmd+R 일반 reload는 file:// 환경이라도 함수 갱신을 보장 못 할 수 있으니, 탭 새로 열기가 가장 안전.
 
-## 5. 폰트 경로 swap — share HTML만 외부 호스팅 향하게
+## 5. 폰트 — 베이스 템플릿에 base64 인라인 (작업본·share 모두 self-contained)
 
-작업본은 `../fonts/` 로컬 참조 (오프라인 OK). 내보내기 함수에서만 폰트 경로를 외부 호스팅(예: Netlify CDN)으로 string replace.
+`aqua-dashboard/dashboard.html` 베이스 템플릿의 `<head>` 첫 `<style>` 안 `@font-face` `src`가 base64 data URL로 박혀 있음. 작업본 cp나 share export 모두 자동으로 폰트 포함.
 
-```js
-clone.querySelectorAll('style').forEach(function (s) {
-  s.textContent = s.textContent.replace(
-    /url\(['"]?\.\.\/fonts\//g,
-    "url('https://your-fonts.netlify.app/"
-  );
-});
+```css
+@font-face { font-family: 'SFProDisplay'; src: url('data:font/woff2;base64,...') format('woff2'); font-weight: 400 500; font-display: swap; }
+@font-face { font-family: 'SFProDisplay'; src: url('data:font/woff2;base64,...') format('woff2'); font-weight: 600 800; font-display: swap; }
+@font-face { font-family: 'YouandiNewKrTitle'; src: url('data:font/woff2;base64,...') format('woff2'); font-weight: 700; font-display: swap; }
 ```
 
-장점:
-- 작업 환경은 로컬 그대로 (CDN 죽어도 영향 X)
-- 내보내기만 자동 swap → 받은 사람 어디서든 폰트 OK (인터넷 연결 시)
+이유:
+- file:// 환경에선 JS `fetch`/XHR가 막혀 export 시점에 폰트 읽기 불가 (Chrome 정책). 미리 박는 게 유일한 self-contained 해법.
+- 외부 CDN 의존 X. 현대카드 `img.hyundaicard.com/.../font.css`는 외부에서 죽음 (302 → error). Netlify/Vercel/jsDelivr도 추가 운영 부담 + 인터넷 의존.
+- 받는 사람은 HTML 한 파일만 받고 더블클릭. 인터넷 끊겨도 폰트 OK.
 
-대안: 폰트 base64 인라인 — 100% self-contained지만 파일 사이즈 폭증 (한글 폰트 5MB+ → +33%).
+함정:
+- **weight range 필수**: SF Pro Bold 한 파일을 weight 600/700/800에 다 쓰는데, `@font-face` 3개로 분리하면 base64 문자열이 3중 중복돼 파일 사이즈 폭발 (4MB → 26MB 사고남). `font-weight: 600 800;` range로 한 번만 박아 13MB로 억제.
+- 베이스 템플릿 사이즈 ~13MB. cp로 만든 작업본도 ~13MB. 하드디스크에 누적될 수 있으니 `archive/` 도입 검토 (SKILL.md §3 참고).
+- 폰트 갱신 시 `~/.claude/skills/dosa/fonts/` 안 woff2 갱신 + 베이스 템플릿 재인코딩 필요. `python3` 한 번에 base64 갱신 가능.
+- Hackathon 프로젝트는 별도 폴더 호스팅이라 `assets/fonts/` 상대 참조로 충분. dosa는 단일 파일 공유 시나리오라 인라인이 맞다.
 
-CDN 호스팅 시 CORS 헤더 (`Access-Control-Allow-Origin: *`) 필수. Netlify는 `_headers` 파일에 박을 수 있다.
+### 5-1. 첫 슬라이드 깜빡임 (showSlide(0) 재트리거 경합)
+
+13MB 인라인 환경에서 페이지 로드 직후 `showSlide(0)`의 `.animate` 재트리거(`style.animation = 'none' → reflow → ''`)가 무거운 렌더와 경합해 자식 요소들이 opacity:0에 stuck되는 사례 발견. 다음 슬라이드 갔다오면 정상 재트리거됨.
+
+해결: `_hasShownBefore` 플래그로 **첫 showSlide 호출엔 재트리거 skip** — 초기 `.animate`는 CSS 클래스 룰로 자연스럽게 한번만 흐르도록. 두 번째 호출부터 재트리거 정상 동작.
+
+```js
+var _hasShownBefore = false;
+function showSlide(idx) {
+  // ... active 토글 등 ...
+  if (_hasShownBefore) {
+    var animEls = slides[idx].querySelectorAll('.animate');
+    animEls.forEach(function (el) { el.style.animation = 'none'; void el.offsetHeight; el.style.animation = ''; });
+  }
+  _hasShownBefore = true;
+}
+```
+
+이 패턴은 폰트 base64 인라인이 도입된 후 발생. 작은 파일(4MB)에선 재현 안 됐음.
+
+### 5-2. 베이스 템플릿 재인코딩 스크립트 예시:
+```python
+import base64
+font_dir = '~/.claude/skills/dosa/fonts'
+def b64(name): return base64.b64encode(open(f'{font_dir}/{name}', 'rb').read()).decode()
+# 위 3개 @font-face의 data URL을 갱신된 b64로 교체
+```
 
 ## 6. 카운트 디버그 함정 — CSS selector vs HTML attribute
 

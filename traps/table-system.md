@@ -1,8 +1,8 @@
 # aqua-dashboard xt 테이블 시스템 구현 노트
 
-`aqua-dashboard/table.html`에 구현된 셀 편집 + 다중 선택 + 헤드라인 + bullet/no-marker 시스템 + IME-안전 Shift+Enter 핸들링. 다음 디자인 톤(예: design-light) 만들 때 이 패턴 거의 그대로 가져다 쓸 수 있음.
+`aqua-dashboard/dashboard.html`에 구현된 셀 편집 + 다중 선택 + 헤드라인 + bullet/no-marker 시스템 + IME-안전 Shift+Enter 핸들링. 다음 디자인 톤(예: design-light) 만들 때 이 패턴 거의 그대로 가져다 쓸 수 있음.
 
-contenteditable 함정은 [`../traps/contenteditable.md`](../traps/contenteditable.md) 참조.
+contenteditable 함정은 [`./contenteditable.md`](./contenteditable.md) 참조.
 
 ---
 

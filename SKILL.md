@@ -25,6 +25,7 @@ description: 정리된 자료(텍스트·노션·PDF·문서 드래프트 이미
 - `traps/ix-block.md` — 이미지 블록(ix-block) 통합 함정
 - `traps/dashboard-layout.md` — 슬라이드 탑/미드/봇 레이아웃·z-index·다크모드 토큰
 - `traps/transition.md` — 리스트 추가/제거 트랜지션·element 상태 변동성
+- `traps/table-system.md` — xt 테이블 시스템 구현 노트 (셀 편집·다중 선택·IME)
 
 ### 3. 작업 공간 셋업 확인 (첫 호출 시 1회만)
 

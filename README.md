@@ -27,11 +27,11 @@ dosa/
 │   ├── export.md             # 굽기/내보내기 함정
 │   ├── ix-block.md           # 이미지 컴포넌트 함정
 │   ├── dashboard-layout.md   # 슬라이드 레이아웃·z-index·다크모드 함정
-│   └── transition.md         # 트랜지션·element 상태 함정
+│   ├── transition.md         # 트랜지션·element 상태 함정
+│   └── table-system.md       # xt 테이블 시스템 구현 노트 (재사용 패턴)
 ├── fonts/                    # 표준 폰트 (You&I + SF Pro)
 └── aqua-dashboard/
-    ├── dashboard.html        # 베이스 HTML (샘플이자 첫 참고 자료)
-    └── table-system.md       # xt 테이블 시스템 구현 노트
+    └── dashboard.html        # 베이스 HTML (샘플이자 첫 참고 자료)
 ```
 
 ## 동기화 트리거 (CLAUDE.md)
