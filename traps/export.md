@@ -105,7 +105,70 @@ def b64(name): return base64.b64encode(open(f'{font_dir}/{name}', 'rb').read()).
 # 위 3개 @font-face의 data URL을 갱신된 b64로 교체
 ```
 
-## 6. 카운트 디버그 함정 — CSS selector vs HTML attribute
+## 6. 굽기 시 오버뷰 패널 열려있으면 `body.overview-active`가 박혀 hover 전부 죽음
+
+**증상**: 굽기 후 결과 파일 열면 텍스트 hover가 어디서도 안 떠서 인라인 편집이 죽은 듯 보임. 모든 `.editable`이 `cursor: default; pointer-events: none !important` 상태.
+
+**원인**: 굽기는 `document.documentElement.cloneNode(true)`로 현재 DOM을 그대로 복제·저장. 사용자가 오버뷰 패널 열어둔 채 굽기 누르면 `<body class="overview-active">`가 그대로 박힘. CSS 룰:
+
+```css
+body.overview-active .editable { cursor: default; pointer-events: none !important; }
+```
+
+이 룰이 모든 페이지의 모든 편집 가능 element에 적용 → hover 전체 사망.
+
+**해결** (두 겹 방어):
+```js
+function exportHTML() {
+  // 1. clone 전에 오버뷰 닫기 — 사용자에게 시각적 피드백 + DOM 정리
+  if (typeof closeOverview === 'function') closeOverview();
+
+  var clone = document.documentElement.cloneNode(true);
+  // ... 기타 청소 ...
+
+  // 2. clone에서 직접 한 번 더 제거 — animation timing으로 클래스 잔존 시 안전망
+  var bodyEl = clone.querySelector('body');
+  if (bodyEl) bodyEl.classList.remove('overview-active');
+
+  // ... blob/download ...
+}
+```
+
+`exportShareHTML`에도 동일 적용. 같은 함정이 다른 stateful body 클래스에서도 재현 가능 — clone 전에 transient 상태 정리하는 게 정석.
+
+## 7. 정적 마크업의 `.ix-img-controls` 때문에 click handler 안 부착
+
+**증상**: 굽기로 만든 작업본을 다시 열면 일부 페이지(이미지 있는 슬라이드)의 toolbar hover는 보이는데 클릭이 작동 안 함. 다른 페이지는 정상.
+
+**원인**: `ensureControls(frame)` 함수 내부:
+
+```js
+function ensureControls(frame) {
+  if (frame.querySelector('.ix-img-controls')) return;  // ← 여기!
+  // 새 controls 생성 + click handler 부착
+}
+```
+
+굽기는 현재 DOM 상태(toolbar 마크업 포함)를 그대로 저장. 다시 열면 `.ix-img-controls` element가 이미 정적 HTML에 있음. `initIxBlock` → `ensureControls` 호출 → element 있으니 early return → **click handler 부착 안 됨**.
+
+**해결**: ensureControls 호출 직전에 기존 controls/handles 제거
+
+```js
+function initIxBlock(block) {
+  // ...
+  var preFrame = shell.querySelector('.ix-img-frame');
+  if (preFrame) {
+    // outerHTML에 박힌 controls/handles 제거 — early return 회피
+    preFrame.querySelectorAll('.ix-img-controls, .ix-resize-handle').forEach(function (el) { el.remove(); });
+    ensureControls(preFrame);
+    ensureResizeHandles(preFrame);
+  }
+}
+```
+
+`restoreUserSlides`(line 8664)에서 같은 fix가 이미 있던 패턴 — `initIxBlock`에도 적용. **early-return guard가 있는 init 함수는 정적 마크업 잔재 때문에 미동작 가능**. 동일 패턴이 `ensureResizeHandles` 등 다른 함수에도 있으면 같이 처리.
+
+## 8. 카운트 디버그 함정 — CSS selector vs HTML attribute
 
 `grep -c 'contenteditable='` 같은 단순 grep은 **CSS selector** (예: `[contenteditable="plaintext-only"]`), **JS 문자열** (예: `el.setAttribute('contenteditable', ...)`), **HTML attribute** 셋 다 잡는다. 굽기 청소 검증 시 grep 카운트로 판단하면 마크업이 깨끗한데도 잔재가 있다고 오판하기 쉬움.
 

@@ -3,3 +3,6 @@
 *.swo
 .idea/
 .vscode/
+
+# 내보내기 결과물 (share-mode export, 외부 공유용 산출물)
+*-export.html

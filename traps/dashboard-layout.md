@@ -113,3 +113,85 @@ color: var(--invert-text);
 
 - B1 (탑+미드): 페이지 23 (BA 직접 수익, dash-stack + dash-cap)
 - B3 (탑+바텀): 페이지 4, 5
+
+---
+
+## 5. 비활성 슬라이드 자식의 `pointer-events: auto !important`가 다른 페이지로 새는 hit-test
+
+**증상**: 사용자가 페이지 19에 있는데 화면 어딘가(예: 텍스트 카드 위)에 마우스 호버하면 다른 페이지(예: 페이지 26 표 슬라이드)의 `+` 버튼 같은 요소가 잡혀서 cursor 변하거나 chip이 떠 버림. **DOM 순서가 늦은 슬라이드일수록** 이 leak이 심함.
+
+**원인**: `.slide` 부모는 `position: absolute; inset: 0; opacity: 0; pointer-events: none`로 비활성 시 invisible + 비인터랙티브 처리. 하지만 자식 element가 명시적으로 `pointer-events: auto !important`를 가지면 부모의 `none`을 우회해서 hit-test에 잡힘.
+
+```css
+/* ❌ 슬라이드 활성 여부와 무관하게 항상 인터랙티브 */
+.xt-shell .xt-gap-btn { pointer-events: auto !important; }
+```
+
+`!important`가 부모의 cascade를 뚫고 들어가는 케이스. DOM 순서상 나중 슬라이드(예: data-orig-idx=25)가 자연스럽게 stacking 위에 있어서 다른 페이지에서도 viewport 좌표 기준으로 그 자식 element가 잡힘.
+
+**해결**: 활성 슬라이드 안에서만 적용되도록 selector scope 좁히기
+
+```css
+/* ✅ 활성 슬라이드 안의 + 버튼만 인터랙티브 */
+.slide.active .xt-shell .xt-gap-btn { pointer-events: auto !important; }
+```
+
+비활성 슬라이드의 자식은 부모 `pointer-events: none` 그대로 cascade 적용 → 다른 페이지에 새지 않음.
+
+**룰**: dosa 슬라이드 안 어떤 element든 `pointer-events: auto !important` 박을 땐 반드시 `.slide.active` prefix 붙이기. 그게 슬라이드 격리(slide isolation) 정석.
+
+## 6. 호버는 되는데 클릭만 안 되면 z-index 문제 아님 — JS 핸들러 attachment 확인
+
+**증상**: 어떤 버튼에 호버하면 cursor도 바뀌고 toolbar도 등장하는데, 클릭하면 아무 일 안 일어남.
+
+**오진 가능성**: "z-index 문제 아닐까?" → **아님**. z-index 문제면 hover도 같이 죽음. hover가 살아있다는 건 hit-test가 그 element에 도달한다는 뜻.
+
+**진짜 원인 후보**:
+1. **JS click handler가 부착 안 됨** — `getEventListeners(button)`이 빈 객체이고 delegation도 매칭 안 되는 경우. 정적 마크업의 element는 init 시 handler 부착 단계에서 누락 가능 (예: `ensureControls`의 early-return guard로 인해)
+2. **capture phase에서 click 가로챔** — `addEventListener('click', fn, {capture: true})` + `stopPropagation`이 click event를 소비. hover는 별도 이벤트라 영향 없음
+3. **mousedown에서 preventDefault** — 일부 브라우저에서 click 이벤트 발화를 막을 수 있음
+
+**진단 순서**:
+```js
+// 1. 핸들러 부착 여부 확인 (Chrome DevTools)
+getEventListeners(buttonElement)
+
+// 2. click이 실제로 도달하는지
+document.addEventListener('click', e => console.log('clicked:', e.target), {capture: true, once: true});
+
+// 3. delegation 매칭 확인 — 부모/조상 어딘가의 document-level click handler가 처리해야 정상
+```
+
+호버/클릭 비대칭 발견 시 z-index부터 의심하지 말 것. 십중팔구 JS handler 또는 event flow 문제.
+
+## 7. bfcache 복원 시 input.value와 .active 클래스 mismatch
+
+**증상**: 페이지 19로 이동 → 브라우저 뒤로 가기 → 다시 돌아오면 카운터는 "19" 그대로인데 화면은 page 1 (cover) 표시. content와 counter가 다른 슬라이드 가리킴.
+
+**원인**: 두 가지 다른 메커니즘이 충돌:
+- **브라우저 form persistence**: `<input>`의 value를 페이지 떠난 시점 그대로 보존 (autocomplete 기본 동작)
+- **JS 초기화**: 페이지 다시 로드되면 `var currentSlide = 0` + `showSlide(0)` 실행 → active 클래스가 슬라이드 0으로 리셋
+- showSlide의 `if (document.activeElement !== slideCurrentEl)` 체크 때문에 input이 초점 가졌던 상태면 value 갱신 스킵 → counter는 "19" 유지
+
+**해결** (두 겹):
+```html
+<!-- 1. form persistence 차단 -->
+<input id="slideCurrent" autocomplete="off" ... >
+```
+
+```js
+// 2. pageshow에서 강제 동기화 (bfcache + 일반 reload 둘 다 catch)
+window.addEventListener('pageshow', function () {
+  setTimeout(function () {
+    var activeSlide = document.querySelector('#slidesWrapper > .slide.active');
+    var idx = activeSlide ? slides.indexOf(activeSlide) : 0;
+    if (idx < 0) idx = 0;
+    currentSlide = idx;
+    if (slideCurrentEl) slideCurrentEl.value = String(idx + 1);
+  }, 0);
+});
+```
+
+`setTimeout(..., 0)` 필수: 다른 init/restore 핸들러가 끝난 다음 실행되어야 그들이 다시 덮어쓰는 race를 피함. 또 `slideCurrentEl.blur()`는 호출하지 말 것 — blur 핸들러(`commitSlideNumberEdit`)가 트리거되어 옛 input 값으로 다시 navigate해버림.
+
+**룰**: 브라우저 form 자동 저장이 영향 줄 수 있는 상태 입력 element는 `autocomplete="off"` 박고, pageshow에서 실제 DOM 상태 기준으로 강제 동기화.
