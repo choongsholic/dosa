@@ -709,6 +709,7 @@ localStorage 키 분리:
 2. localStorage 키 rename (`dashboard-` → `<work>-`) — 충돌 방지
 3. 슬라이드 영역(`<div class="slides-wrapper">`~`</div>`) 안 27장을 새 콘텐츠로 교체. 카운터(slideTotal)는 JS가 자동 갱신
 4. 폰트 경로(`../fonts/`)는 그대로 — 사용자 작업 공간의 `<DOSA-ROOT>/fonts/` 가리킴 (도사가 첫 호출 시 스킬에서 cp)
+   - **굽기/내보내기 파일명**은 이제 `location.pathname` 에서 자동 추출됨 (2026-05-17 부로 베이스 함수 동적화). 별도 rename 불필요. 단 *과거 fork 한 작업물*은 베이스 옛 하드코딩 (`dashboard.html`) 그대로일 수 있으니 export 시 파일명 한번 확인.
 5. 본 가이드의 12절(카드 매핑)·13절(표) 룰 따라 콘텐츠 변환
 
 **새 컴포넌트 만들기 전 베이스 검색 필수**: 단계 흐름·진행 표시·카드 그리드 같은 시각 패턴이 필요할 때, 베이스 dashboard.html 에 이미 같은 컴포넌트가 있는지 *먼저 grep* 한다. 베이스에 있는 패턴이면 — 마크업·CSS·인라인 SVG 화살표 등이 검증된 상태라 그대로 가져다 쓰는 게 항상 정답. 직접 step-flow / progress-line 같은 걸 inline 으로 만들면 시각 톤·간격·정렬이 베이스와 어긋남.

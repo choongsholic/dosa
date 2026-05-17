@@ -14,5 +14,6 @@ _render/package-lock.json
 # 작업물 폴더의 렌더 결과물 (시각 검수 후 폐기 대상)
 _renders/
 
-# 도사 작업물 — 본 레포는 스킬 자산만 추적 (design.md §14)
-condolence/
+# 작업물 폴더의 검수·테스트 결과물 (시각 검수 PNG·머지 테스트 등)
+condolence/_renders/
+condolence/_test-merge/
