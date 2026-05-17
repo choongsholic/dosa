@@ -58,7 +58,7 @@ item.draggable = !document.documentElement.classList.contains('share-mode');
 
 ## 5. 폰트 — 베이스 템플릿에 base64 인라인 (작업본·share 모두 self-contained)
 
-`aqua-dashboard/dashboard.html` 베이스 템플릿의 `<head>` 첫 `<style>` 안 `@font-face` `src`가 base64 data URL로 박혀 있음. 작업본 cp나 share export 모두 자동으로 폰트 포함.
+`dosa-base/dashboard.html` 베이스 템플릿의 `<head>` 첫 `<style>` 안 `@font-face` `src`가 base64 data URL로 박혀 있음. 작업본 cp나 share export 모두 자동으로 폰트 포함.
 
 ```css
 @font-face { font-family: 'SFProDisplay'; src: url('data:font/woff2;base64,...') format('woff2'); font-weight: 400 500; font-display: swap; }

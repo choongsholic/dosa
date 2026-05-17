@@ -705,7 +705,7 @@ localStorage 키 분리:
 
 새 작업물 만들 때:
 
-1. 베이스 HTML(`~/.claude/skills/dosa/aqua-dashboard/dashboard.html` 또는 `dashboard_org.html`)을 cp → 사용자 작업 공간의 새 작업물 폴더에 저장 (예: `<DOSA-ROOT>/<work>/<work>.html`)
+1. 베이스 HTML(`~/.claude/skills/dosa/dosa-base/dashboard.html` 또는 `dashboard_org.html`)을 cp → 사용자 작업 공간의 새 작업물 폴더에 저장 (예: `<DOSA-ROOT>/<work>/<work>.html`)
 2. localStorage 키 rename (`dashboard-` → `<work>-`) — 충돌 방지
 3. 슬라이드 영역(`<div class="slides-wrapper">`~`</div>`) 안 27장을 새 콘텐츠로 교체. 카운터(slideTotal)는 JS가 자동 갱신
 4. 폰트 경로(`../fonts/`)는 그대로 — 사용자 작업 공간의 `<DOSA-ROOT>/fonts/` 가리킴 (도사가 첫 호출 시 스킬에서 cp)

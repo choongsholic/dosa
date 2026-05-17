@@ -54,7 +54,7 @@ description: 정리된 자료(텍스트·노션·PDF·문서 드래프트 이미
 - 위치: `<DOSA-ROOT>/<work-name>/` (평평하게. 작업물 5개 넘어가면 `archive/` 도입 검토)
 
 ### 5. 베이스 HTML cp + 슬라이드 교체
-- **베이스 위치**: `~/.claude/skills/dosa/aqua-dashboard/dashboard.html` (표준 — xt 테이블 시스템 + popover + bullet 일반화 + ix-block 이미지 + 굽기/내보내기 export 등 모든 인터랙션 탑재)
+- **베이스 위치**: `~/.claude/skills/dosa/dosa-base/dashboard.html` (표준 — xt 테이블 시스템 + popover + bullet 일반화 + ix-block 이미지 + 굽기/내보내기 export 등 모든 인터랙션 탑재)
 - 사용자 작업물 폴더로 cp → `<DOSA-ROOT>/<work>/<work>.html`
 - **localStorage 키 rename**: `new3-dashboard-` → `<work>-` 일괄 치환 (다른 작업물과 충돌 방지). `new3-dashboard-migrated-force-v1` 같은 마이그레이션 플래그도 같이 치환됨 — OK
 - 슬라이드 wrapper 안 슬라이드 영역만 새 콘텐츠로 교체. 카운터(slideTotal)는 JS가 자동 계산

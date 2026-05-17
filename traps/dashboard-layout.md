@@ -1,6 +1,6 @@
 # dosa 슬라이드 레이아웃 함정 모음
 
-dashboard.html(현재 `aqua-dashboard/dashboard.html`) 류 슬라이드 보고서 작업에서 반복적으로 부딪힌 레이아웃·stacking·다크모드 함정. 새 디자인 톤 만들 때도 동일 룰 적용.
+dashboard.html(현재 `dosa-base/dashboard.html`) 류 슬라이드 보고서 작업에서 반복적으로 부딪힌 레이아웃·stacking·다크모드 함정. 새 디자인 톤 만들 때도 동일 룰 적용.
 
 ---
 

@@ -23,7 +23,7 @@
 │   ├── transition.md           # 트랜지션·리스트 추가/제거·element 상태 함정
 │   └── table-system.md         # xt 테이블 시스템 구현 노트 (재사용 패턴)
 ├── fonts/                      # 표준 폰트 마스터 (You&I + SF Pro)
-└── aqua-dashboard/             # 베이스 HTML (참고)
+└── dosa-base/             # 베이스 HTML (참고)
 ```
 
 **작업 공간** (예: `~/Documents/DOSA/`) — 사용자가 만든 작업물 누적:
@@ -35,9 +35,9 @@
     └── imgs/
 ```
 
-작업물 폴더명은 짧고 구체적으로 (예: `aqua-dashboard`, `mau-800m`). 평평하게 시작하고 5개 이상이면 `archive/`로 묶기.
+작업물 폴더명은 짧고 구체적으로 (예: `dosa-base`, `mau-800m`). 평평하게 시작하고 5개 이상이면 `archive/`로 묶기.
 
-> **중요**: 스킬 폴더 안 `aqua-dashboard/dashboard.html`은 **샘플이자 첫 참고 자료**다. 새 변환 시 도사는 이 샘플 + 작업 공간에 누적된 작업물들의 패턴(레이아웃 선택·카드 vs 표·간지 운용·타이포 위계)을 학습/참고해 새 문서에 반영한다. 즉 베이스 HTML은 빈 템플릿이 아니라 **본인이 만들어온 작업 패턴의 살아있는 라이브러리**. 작업물이 누적될수록 참고 풀이 풍부해지는 구조다.
+> **중요**: 스킬 폴더 안 `dosa-base/dashboard.html`은 **샘플이자 첫 참고 자료**다. 새 변환 시 도사는 이 샘플 + 작업 공간에 누적된 작업물들의 패턴(레이아웃 선택·카드 vs 표·간지 운용·타이포 위계)을 학습/참고해 새 문서에 반영한다. 즉 베이스 HTML은 빈 템플릿이 아니라 **본인이 만들어온 작업 패턴의 살아있는 라이브러리**. 작업물이 누적될수록 참고 풀이 풍부해지는 구조다.
 
 ---
 
@@ -48,7 +48,7 @@
 3. (첫 호출 시) 작업 공간 위치 확인·생성 + 스킬의 `fonts/`를 작업 공간으로 복사
 4. 본 문서의 공통 원칙 따라 변환 — 페이지 분할, 카드/표 선택, 타이포 위계
 5. `<DOSA-ROOT>/<work-name>/` 새 폴더 생성
-6. 베이스 HTML(`~/.claude/skills/dosa/aqua-dashboard/dashboard.html`) 복사 후 슬라이드 영역만 교체 → `<DOSA-ROOT>/<work-name>/<work-name>.html`
+6. 베이스 HTML(`~/.claude/skills/dosa/dosa-base/dashboard.html`) 복사 후 슬라이드 영역만 교체 → `<DOSA-ROOT>/<work-name>/<work-name>.html`
 
 ---
 
@@ -149,7 +149,7 @@ src = f'data:image/png;base64,{b64}'
 ## 5. 작업물 추가 시 체크리스트
 
 - [ ] 폴더명 짧고 구체적인가
-- [ ] 베이스 HTML(`~/.claude/skills/dosa/aqua-dashboard/dashboard.html`)을 복사 후 슬라이드 영역만 교체했는가
+- [ ] 베이스 HTML(`~/.claude/skills/dosa/dosa-base/dashboard.html`)을 복사 후 슬라이드 영역만 교체했는가
 - [ ] localStorage 키를 작업물 식별자로 rename했는가 (`<work>-` prefix — 다른 작업물과 충돌 방지)
 - [ ] 빈약한 페이지가 없는가 (3.2 검토)
 - [ ] 표를 카드로 재구성할 수 있는데 표로 갔지는 않았는가 (3.5 검토)

@@ -1,8 +1,8 @@
 # dosa contenteditable 함정 모음
 
-dosa 보고서 템플릿(현재 `aqua-dashboard/`, 미래 다른 디자인 톤도 동일 적용)처럼 `<li contenteditable="plaintext-only">` + absolute 자식(컨트롤) + 한글 IME가 얽히는 ce 편집기를 만들 때 반복적으로 부딪힌 함정들. 같은 시행착오를 두 번 이상 겪고 정리.
+dosa 보고서 템플릿(현재 `dosa-base/`, 미래 다른 디자인 톤도 동일 적용)처럼 `<li contenteditable="plaintext-only">` + absolute 자식(컨트롤) + 한글 IME가 얽히는 ce 편집기를 만들 때 반복적으로 부딪힌 함정들. 같은 시행착오를 두 번 이상 겪고 정리.
 
-ce 기반 인터랙션을 dosa 안에서 새로 만들거나 기존 구현(현재 `aqua-dashboard/dashboard.html`, `table.html`)을 손볼 때 먼저 읽고 시작.
+ce 기반 인터랙션을 dosa 안에서 새로 만들거나 기존 구현(현재 `dosa-base/dashboard.html`, `table.html`)을 손볼 때 먼저 읽고 시작.
 
 ---
 

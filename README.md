@@ -30,7 +30,7 @@ dosa/
 │   ├── transition.md         # 트랜지션·element 상태 함정
 │   └── table-system.md       # xt 테이블 시스템 구현 노트 (재사용 패턴)
 ├── fonts/                    # 표준 폰트 (You&I + SF Pro)
-└── aqua-dashboard/
+└── dosa-base/
     └── dashboard.html        # 베이스 HTML (샘플이자 첫 참고 자료)
 ```
 

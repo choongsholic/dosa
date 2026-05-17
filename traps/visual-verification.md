@@ -32,7 +32,7 @@ cd ~/.claude/skills/dosa/_render && npm install
 ### 참조 우선순위 (있는 것부터 사용)
 
 1. **사용자 지정 참조** — *"이 톤으로 따라가줘"* 식으로 명시한 다른 HTML/이미지. 변환 시작 시 사용자가 알려줌
-2. **베이스 dashboard.html** (`~/.claude/skills/dosa/aqua-dashboard/dashboard.html`) — 항상 존재. 기본 비교 대상
+2. **베이스 dashboard.html** (`~/.claude/skills/dosa/dosa-base/dashboard.html`) — 항상 존재. 기본 비교 대상
 3. **작업물 폴더의 `참고/` 자료** — 콘텐츠 검증용 PNG/PDF가 있다면 *콘텐츠 정확성* 도 함께 검수
 
 ### 비교 절차

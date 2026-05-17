@@ -11,7 +11,7 @@
 ## 검수 5종 (보고 전 필수)
 
 ### 1. 베이스 템플릿 잔재
-이전 베이스 HTML(`aqua-dashboard/dashboard.html`)의 메타·잔재 토큰이 본문 외 영역에 남았는지:
+이전 베이스 HTML(`dosa-base/dashboard.html`)의 메타·잔재 토큰이 본문 외 영역에 남았는지:
 - `<title>` 태그 — 다른 덱 제목이 그대로 박힌 경우 자주 발생
 - `<meta name="description">` — 있다면 갱신
 - `<span class="slide-total">` 의 정적 fallback 숫자가 실제 슬라이드 수와 다른지 (JS가 갱신해도 정적값은 맞춰주는 게 깔끔)

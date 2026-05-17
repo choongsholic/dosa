@@ -187,7 +187,7 @@ A. 마스터는 스킬 폴더 (`~/.claude/skills/dosa/fonts/`). 사본은 작업
 │   ├── transition.md         # 트랜지션·element 상태 함정
 │   └── table-system.md       # xt 테이블 시스템 구현 노트 (재사용 패턴)
 ├── fonts/                    # 표준 폰트 마스터 (You&I + SF Pro)
-└── aqua-dashboard/           # 베이스 HTML (dashboard.html)
+└── dosa-base/           # 베이스 HTML (dashboard.html)
 ```
 
 **작업 공간** (예: `~/Documents/DOSA/`) — 사용자가 만든 작업물 누적:
