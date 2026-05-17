@@ -345,3 +345,19 @@ li.addEventListener('keydown', function (e) {
 **해결**: 부모가 `font-size: calc(N * var(--font-scale))`로 사이즈 토큰 박고 있으면 자식 element는 **inline style 없이 상속**받게 둘 것. 자식이 cmd+↑ 누를 때 `el.style.fontSize`가 새로 박히고, EDIT_KEY에 저장되며, 새로고침 후에도 그 값으로 복원.
 
 **규칙**: dosa 마크업에서 동일 부모 안 자식 group에 부모 사이즈 토큰만 있으면 충분 — 자식에 중복 inline `font-size`를 박지 말 것. 박혀있으면 cmd+arrow 동작 + 저장 흐름이 락에 갇힘.
+
+---
+
+## 15. 사용자 인라인 편집 결과는 즉시 마크업에 박기 (localStorage에만 두지 말 것)
+
+**증상**: 사용자가 표·카드를 보기 좋게 다듬은 결과가 새로고침 시 부분/전체 사라짐. 디버깅 중 `localStorage.removeItem(...)` 권유한 직후 영구 손실.
+
+**원인**: 인라인 편집은 `*-xt-blocks-v3`, `*-edits-v3` 등 localStorage에만 저장됨. 마크업은 그대로. `applyStoredEdits`가 새로고침 시 복원하는 구조라 **localStorage가 청소되면 사용자 다듬기가 영구히 날아감**. 디버깅(rowspan, transition 등) 중에 자주 청소를 권하게 되는데, 사용자 작업물이 휘발됨.
+
+**해결 (워크플로우)**:
+1. 사용자가 "내가 더 보기 좋게 다듬었어"라고 하면 → 즉시 localStorage(`<key>-xt-blocks-v3`, `<key>-edits-v3`)에서 다듬은 결과를 추출해 **HTML 마크업에 직접 박기** (셀 텍스트·줄바꿈·inline style)
+2. 디버깅·구조 변경 작업 전에 사용자 편집 결과를 마크업에 confirm-bake — "굽기"는 export 산출물용만이 아님
+3. design.md/skills md에 룰 박을 때 → **현재 작업물의 마크업에도 동시 적용**. 룰 박기와 적용 박기는 한 세트
+4. 사용자에게 localStorage 청소 권유 전 → "다듬은 내용 마크업에 먼저 박을게요" 한 단계 거치기
+
+**실제 사례**: condolence.html 슬라이드 4 표 작업 중, 사용자가 큰 본문 + 작은 헤더 + 행 여유 패턴으로 다듬어둠. rowspan + line crossing 디버깅 과정에서 localStorage 청소 권유 → 영구 손실. design.md §13.7에 룰만 박고 마크업엔 적용 안 한 채 다음 작업 진행해서 사용자가 새로고침하니 원본이 복귀 → "쌩깠다" 지적 받음.

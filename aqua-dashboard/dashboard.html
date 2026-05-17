@@ -7229,19 +7229,8 @@
         gap.classList.toggle('show-chips');
         return;
       }
-      // chip 클릭 → 라인 색상 적용 + popover 닫힘
-      var gapChip = e.target.closest('.xt-gap-chip');
-      if (gapChip) {
-        e.stopPropagation();
-        var gapC = gapChip.closest('.xt-gap');
-        var c = gapChip.dataset.c;
-        if (c === 'none') delete gapC.dataset.lineColor;
-        else gapC.dataset.lineColor = c;
-        var blkG = gapC.closest('.xt-block');
-        if (blkG && typeof saveXtBlockState === 'function') saveXtBlockState(blkG);
-        closeGapChips(gapC);
-        return;
-      }
+      // chip 클릭 → 8109 핸들러(window)에서 applyGapBorder + saveEdit 처리. 여기선 stopPropagation 안 함 — 8109까지 버블 전달.
+      // 단 popover 닫는 책임은 8109가 가져감 (8158-onward).
       // 외부 클릭 시 chips popover 닫기
       if (!e.target.closest('.xt-gap')) {
         $$('.xt-gap.show-chips').forEach(function (g) { closeGapChips(g); });
@@ -8241,29 +8230,47 @@
       if (!rows.length) return;
       var idx = +gap.dataset.idx;
       if (gap.classList.contains('row-gap')) {
-        var targetRow, prop;
-        if (idx === 0) {
-          targetRow = rows[0];
-          prop = 'borderTop';
-        } else if (idx >= rows.length) {
-          targetRow = rows[rows.length - 1];
-          prop = 'borderBottom';
-        } else {
-          targetRow = rows[idx - 1];
-          prop = 'borderBottom';
+        // 행 갭: 갭의 *바닥에 닿는 모든 셀*에 borderBottom + 갭의 *천장에서 시작하는 모든 셀*에 borderTop 적용
+        // 위쪽 행에서 rowspan>1 으로 갭에 정확히 닿는 셀도 포함 (예: rowspan=2가 r=1에서 시작 → 갭 idx=3에 도달)
+        // 위쪽 행에서 rowspan으로 갭을 통과해 더 아래로 가는 셀은 스킵 (라인 끝 지점 아님)
+        for (var r = 0; r < idx; r++) {
+          var rrow = rows[r];
+          if (!rrow) continue;
+          Array.prototype.forEach.call(rrow.children, function (cell) {
+            var rs = parseInt(cell.getAttribute('rowspan'), 10) || 1;
+            if (r + rs === idx) {
+              cell.style.borderBottom = styleStr;  // 갭 바닥에 정확히 닿음
+            } else if (r + rs > idx && r < idx) {
+              // 갭을 통과 — 잔재 인라인 클리어
+              if (cell.style.borderBottom) cell.style.borderBottom = '';
+            }
+          });
         }
-        if (!targetRow) return;
-        Array.prototype.forEach.call(targetRow.children, function (cell) {
-          cell.style[prop] = styleStr;
-        });
+        var botRow = (idx >= rows.length) ? null : rows[idx];
+        if (botRow) {
+          // botRow.children에는 rowspan으로 통과하는 셀이 자동 제외됨 (HTML 테이블 구조상)
+          Array.prototype.forEach.call(botRow.children, function (cell) {
+            cell.style.borderTop = styleStr;
+          });
+        }
       } else {
-        var cellIdx, prop2;
-        if (idx === 0) { cellIdx = 0; prop2 = 'borderLeft'; }
-        else if (idx >= rows[0].children.length) { cellIdx = rows[0].children.length - 1; prop2 = 'borderRight'; }
-        else { cellIdx = idx - 1; prop2 = 'borderRight'; }
+        // 컬럼 갭: 좌/우 양쪽 컬럼 셀에 border 적용 (rowspan 셀 bg가 세로선 가리는 문제 해결 — 자기 셀 border는 자기 bg 위에 그려짐)
+        // 단, colspan>1 셀이 갭을 통과하면 스킵 (이론적 케이스 — 현재 표는 colspan 없음이지만 안전하게 처리)
+        var firstRowChildren = rows[0] ? rows[0].children.length : 0;
+        var leftIdx = (idx === 0) ? -1 : idx - 1;
+        var rightIdx = (idx >= firstRowChildren) ? -1 : idx;
         rows.forEach(function (row) {
-          var cell = row.children[cellIdx];
-          if (cell) cell.style[prop2] = styleStr;
+          if (leftIdx >= 0) {
+            var lcell = row.children[leftIdx];
+            if (lcell) {
+              var lcs = parseInt(lcell.getAttribute('colspan'), 10) || 1;
+              if (lcs <= 1) lcell.style.borderRight = styleStr;
+            }
+          }
+          if (rightIdx >= 0) {
+            var rcell = row.children[rightIdx];
+            if (rcell) rcell.style.borderLeft = styleStr;
+          }
         });
       }
     }
@@ -8334,35 +8341,48 @@
         gap.dataset.lineColor = 'black';
         styleStr = '2px solid var(--text)';
       } else if (c === 'gray') {
-        delete gap.dataset.lineColor;
-        styleStr = '';  // inline 제거 → 디폴트 셀 border
+        gap.dataset.lineColor = 'gray';
+        // 테이블의 기본 가로 행 구분선과 동일 톤(--text 12% 투명) — 표 안 회색 일관성
+        styleStr = '2px solid color-mix(in srgb, var(--text) 12%, transparent)';
       } else {  // none
         delete gap.dataset.lineColor;
-        styleStr = '2px solid transparent';  // 라인 제거 (두께만 유지)
+        // 갭 종류별 분기: 컬럼은 layout shift 없으니 0으로 깔끔히 / 행은 높이 유지 위해 transparent
+        // (행 transparent는 row-c 다른 행들 사이에 옅은 줄무늬가 생길 수 있는 트레이드오프 — 높이 유지가 우선)
+        styleStr = gap.classList.contains('col-gap') ? '0' : '2px solid transparent';
       }
       applyGapBorder(gap, styleStr);
-      // 영향받은 셀들 saveEdit (border style이 셀에 inline으로 들어감)
+      // 영향받은 셀들 saveEdit — applyGapBorder가 dual-side로 양쪽 셀에 border를 적용하므로 양쪽 다 저장
       var blockGap = gap.closest('.xt-block');
       if (blockGap && typeof saveEdit === 'function') {
         var tableGap = blockGap.querySelector('table.xt');
         if (tableGap) {
           var rowsGap = getRows(tableGap);
           var idxG = +gap.dataset.idx;
+          var saveCell = function (cellEl) {
+            if (cellEl) try { saveEdit(cellEl); } catch (_) {}
+          };
           if (gap.classList.contains('row-gap')) {
-            var targetIdx = idxG === 0 ? 0 : (idxG >= rowsGap.length ? rowsGap.length - 1 : idxG - 1);
-            var trGap = rowsGap[targetIdx];
-            if (trGap) {
-              Array.prototype.forEach.call(trGap.children, function (cellEl) {
-                try { saveEdit(cellEl); } catch (_) {}
+            // 위쪽: rowspan으로 갭 바닥에 닿는 모든 셀(이전 모든 행 검사) + 갭 통과 잔재 클리어된 셀
+            for (var rs = 0; rs < idxG; rs++) {
+              var rrowS = rowsGap[rs];
+              if (!rrowS) continue;
+              Array.prototype.forEach.call(rrowS.children, function (cellEl) {
+                var rsp = parseInt(cellEl.getAttribute('rowspan'), 10) || 1;
+                if (rs + rsp >= idxG) saveCell(cellEl);  // 갭 닿거나 통과 후 클리어된 셀 둘 다
               });
             }
+            // 아래쪽: idxG row의 모든 셀 (borderTop 받음)
+            var botRowS = rowsGap[idxG];
+            if (botRowS) Array.prototype.forEach.call(botRowS.children, saveCell);
           } else {
+            // col-gap: 좌/우 양쪽 셀 모두 저장 (dual-side applyGapBorder 결과 동기화)
             var firstRowGap = rowsGap[0];
             var colCount = firstRowGap ? firstRowGap.children.length : 0;
-            var cellIdxG = idxG === 0 ? 0 : (idxG >= colCount ? colCount - 1 : idxG - 1);
+            var leftIdxS = (idxG === 0) ? -1 : idxG - 1;
+            var rightIdxS = (idxG >= colCount) ? -1 : idxG;
             rowsGap.forEach(function (row) {
-              var c2 = row.children[cellIdxG];
-              if (c2) try { saveEdit(c2); } catch (_) {}
+              if (leftIdxS >= 0) saveCell(row.children[leftIdxS]);
+              if (rightIdxS >= 0) saveCell(row.children[rightIdxS]);
             });
           }
         }
