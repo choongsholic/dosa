@@ -15,5 +15,5 @@ _render/package-lock.json
 _renders/
 
 # 작업물 폴더의 검수·테스트 결과물 (시각 검수 PNG·머지 테스트 등)
-condolence/_renders/
-condolence/_test-merge/
+works/*/_renders/
+works/*/_test-merge/

@@ -15,7 +15,7 @@
 
 **원칙**: 사용자가 도사로 만든 작업물은 `<DOSA-ROOT>/<work-name>/`(예: `~/Documents/DOSA/mau-800m/`)에 저장하는 게 디폴트. 본 레포는 스킬 자체(룰·자산) 위주.
 
-**예외**: 작업물을 회사·집 컴퓨터 사이 동기화해야 하면(=git pull 로 받기) 본 레포에 작업물 폴더를 포함시킬 수 있다. 그땐 *결과물 .html + 원본 참고 자료* 만 추적, `_renders/`·`_test-merge/`·`node_modules/` 같은 *재생성 가능 산출물*은 `.gitignore`. (2026-05-17 condolence 첫 사례.)
+**예외**: 작업물을 회사·집 컴퓨터 사이 동기화해야 하면(=git pull 로 받기) 본 레포 안 `works/<work-name>/` 에 두면 된다. 그땐 *결과물 .html + 원본 참고 자료* 만 추적, `_renders/`·`_test-merge/`·`node_modules/` 같은 *재생성 가능 산출물*은 `.gitignore`. (2026-05-17 condolence 첫 사례 — `works/condolence/`.)
 
 ## 새 디자인 톤 추가 시
 
