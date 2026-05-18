@@ -1091,3 +1091,35 @@ CSS:
 - **공통 그룹과의 분리**: 양자택일 카드와 *항상 제공*(공통) 카드를 같은 슬라이드에 섞지 말 것. 시각 위계가 무너짐. 슬라이드를 분리(공통 슬라이드 vs 택1 슬라이드) → §18 의 "강조의 절제" 와 같은 원리.
 - **prefix 표기 변형**: `선택 N.` 이 기본. 영문 톤이면 `OPTION A` / `OPTION B`. 단순 ①②는 약함 — 시선 흐름에서 *번호만 인지되고 "택 1"은 안 인지됨*.
 - **금지**: 보완 관계(둘 다 제공/세트) 카드에 "선택 1./2." prefix 박지 말 것 — 양자택일과 시각 혼동 발생.
+
+---
+
+## 21. `.lc-stages` + `.lc-cards` 가로 정렬 — padding/gap/width 3중 일치 (필수)
+
+`lc-stages` 의 STEP 라벨이 아래 `lc-cards` 의 각 카드 *바로 위에* 가로로 정렬되려면 세 가지가 일치해야 한다. 베이스 CSS 디폴트만으로는 어긋남.
+
+| 항목 | 베이스 디폴트 | 정렬 위해 필요 |
+|---|---|---|
+| `lc-stages` `grid-template-columns` | `repeat(3, 1fr)` | 카드 수에 맞춰 `repeat(N, 1fr)` 인라인 명시 |
+| `lc-stages` `padding` | `0 12px` | `padding: 0` 으로 제거 (또는 lc-cards 와 동일) |
+| `lc-stages` `gap` | default (없음/`0`) | `gap` 을 `lc-cards` 의 gap 과 동일하게 (예: 24px) |
+| `.lc-stage` `width` | default | `width: 100%; justify-self: stretch` 명시 — grid item 이 콘텐츠 폭으로 잡혀 stretch 안 됨 |
+
+**Why**: 두 grid 컨테이너 (stages, cards) 의 1fr 너비가 padding/gap 차이로 어긋남. 또 `.lc-stage` 가 grid item 인데도 콘텐츠 폭으로 잡혀(원인 미상, 추정: text-align:center + display 미명시 조합) editable highlight 박스가 카드 폭이 아닌 *라벨 텍스트 + 화살표* 만 감쌈.
+
+사용자 명시 (2026-05-18 condolence p7): "스탭 텍스트필드가 박스랑 얼라인이 안맞지? 박스 가로 사이즈에 맞춰야 하지 않아?"
+
+**적용 마크업 예시**:
+```html
+<div class="lc-stages animate delay-2" style="grid-template-columns: repeat(4, 1fr); gap: 24px; padding: 0;">
+  <div class="lc-stage editable">STEP 1</div>
+  <div class="lc-stage editable">STEP 2</div>
+  ...
+</div>
+<div class="lc-cards animate delay-3" style="grid-template-columns: repeat(4, 1fr); gap: 24px;">
+  <div class="lc-card">...</div>
+  ...
+</div>
+```
+
+**베이스 CSS 패치 권장**: `.lc-stage` 정의에 `width: 100%; justify-self: stretch;` 영구 추가. 새 작업물에서도 함정 안 만남. 베이스 `.lc-stages` 의 `padding: 0 12px` 도 제거 검토 (다른 슬라이드 의도 영향 점검 후).
